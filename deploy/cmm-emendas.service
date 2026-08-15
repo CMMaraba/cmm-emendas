@@ -1,0 +1,30 @@
+[Unit]
+Description=CMM Emendas Impositivas (gunicorn)
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=cmmemendas
+Group=cmmemendas
+WorkingDirectory=/opt/cmm-emendas
+RuntimeDirectory=cmm-emendas
+Environment=DJANGO_SETTINGS_MODULE=config.settings.prod
+Environment=ENV_FILE=/etc/cmm-emendas/emendas.env
+ExecStart=/opt/cmm-emendas/.venv/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/run/cmm-emendas/gunicorn.sock \
+    --access-logfile - \
+    --error-logfile - \
+    config.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cmm-emendas /run/cmm-emendas
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Cadastros{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Cadastros</h1>
+<p class="text-muted">Os cadastros de apoio são mantidos pela área administrativa do Django.</p>
+<div class="list-group">
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/parlamento/vereador/">Vereadores</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/parlamento/bancada/">Bancadas</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/parlamento/partido/">Partidos</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/parlamento/perfil/">Perfis de acesso (logins)</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/orcamento/entidade/">Entidades (OSCs)</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/orcamento/orgaoexecutor/">Órgãos executores</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/orcamento/funcaogoverno/">Funções de governo</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/orcamento/subfuncaogoverno/">Subfunções de governo</a>
+    <a class="list-group-item list-group-item-action" href="/emendas/admin/orcamento/programappa/">Programas do PPA</a>
+</div>
+{% endblock %}

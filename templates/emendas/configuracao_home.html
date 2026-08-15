@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Configuração do exercício{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Configuração do exercício orçamentário</h1>
+
+{% if not exercicio %}
+    <div class="alert alert-warning">
+        Nenhum exercício aberto. Crie um em
+        <a href="/emendas/admin/orcamento/exercicio/add/">Django admin → Exercícios</a>.
+    </div>
+{% else %}
+    <div class="card mb-4">
+        <div class="card-header">Exercício {{ exercicio.ano }}</div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">RCL do exercício anterior ({{ exercicio.ano_referencia_rcl }})</dt>
+                <dd class="col-sm-8">R$ {{ exercicio.rcl_exercicio_anterior|floatformat:2 }}</dd>
+                <dt class="col-sm-4">Número de vereadores</dt>
+                <dd class="col-sm-8">{{ exercicio.numero_vereadores }}</dd>
+                <dt class="col-sm-4">Prazo de envio</dt>
+                <dd class="col-sm-8">{{ exercicio.prazo_envio|date:"d/m/Y"|default:"—" }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <h2 class="h5">Faixas e tetos calculados</h2>
+    <div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr><th>Faixa</th><th>Modalidade</th><th>Percentual da RCL</th><th>Teto por vereador</th><th>Ativa</th></tr>
+        </thead>
+        <tbody>
+        {% for item in faixas %}
+            <tr>
+                <td>{{ item.faixa.nome }}</td>
+                <td>{{ item.faixa.get_modalidade_display }}</td>
+                <td>{{ item.faixa.percentual_rcl }}%</td>
+                <td>R$ {{ item.teto_por_vereador|floatformat:2 }}</td>
+                <td>{% if item.faixa.ativa %}<span class="badge bg-success">Sim</span>{% else %}<span class="badge bg-secondary">Não</span>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <a class="btn btn-marrom" href="/emendas/admin/orcamento/exercicio/{{ exercicio.pk }}/change/">
+        Editar RCL, nº de vereadores e faixas
+    </a>
+    <a class="btn btn-outline-marrom" href="/emendas/admin/orcamento/exercicio/">Abrir próximo exercício (clonar)</a>
+    <p class="form-text mt-2">
+        Alterar RCL, percentuais ou nº de vereadores recalcula automaticamente os tetos e o
+        painel de saldo de todos os gabinetes e bancadas.
+    </p>
+{% endif %}
+{% endblock %}

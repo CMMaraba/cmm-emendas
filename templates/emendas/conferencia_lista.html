@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Fila de conferência{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Fila de conferência do setor técnico</h1>
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr><th>Código</th><th>Autor</th><th>Faixa</th><th>Valor</th><th>Situação</th><th>Enviada em</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for emenda in emendas %}
+        <tr>
+            <td>{{ emenda.codigo }}</td>
+            <td>{{ emenda.autor_nome }} ({{ emenda.partido.sigla }})</td>
+            <td>{{ emenda.faixa.nome }}</td>
+            <td>R$ {{ emenda.valor_previsto|floatformat:2 }}</td>
+            <td>
+                <span class="badge {% if emenda.situacao == 'em_conferencia' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">
+                    {{ emenda.get_situacao_display }}
+                </span>
+            </td>
+            <td>{{ emenda.enviada_em|date:"d/m/Y H:i" }}</td>
+            <td><a class="btn btn-sm btn-marrom" href="{% url 'emendas:conferencia_detalhe' emenda.pk %}">Conferir</a></td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="7" class="text-center text-muted">Nenhuma emenda aguardando conferência.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

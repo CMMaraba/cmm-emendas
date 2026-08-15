@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{% if emenda.pk %}Editar emenda{% else %}Nova emenda{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">{% if emenda.pk %}Editar emenda {{ emenda.codigo }}{% else %}Nova emenda — {{ faixa.nome }}{% endif %}</h1>
+<p class="text-muted">Faixa: {{ faixa.nome }} ({{ faixa.get_modalidade_display }})</p>
+
+<div class="cartao-saldo mb-4" id="cartao-saldo-form"
+     data-teto="{{ teto }}" data-usado-sem-esta="{{ usado_sem_esta }}">
+    <div class="d-flex justify-content-between small text-muted">
+        <span>Limite da faixa</span><span>R$ <span id="saldo-teto">{{ teto|floatformat:2 }}</span></span>
+    </div>
+    <div class="d-flex justify-content-between small text-muted">
+        <span>Já cadastrado nas demais emendas</span><span>R$ {{ usado_sem_esta|floatformat:2 }}</span>
+    </div>
+    <div id="saldo-projetado-linha" class="fw-semibold mt-2">Saldo projetado: <span id="saldo-projetado">R$ {{ teto|floatformat:2 }}</span></div>
+</div>
+
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">{{ form.funcao_governo.label }}</label>
+            {{ form.funcao_governo }}
+            <div class="text-danger small">{{ form.funcao_governo.errors }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">{{ form.unidade_gestora.label }}</label>
+            {{ form.unidade_gestora }}
+            <div class="text-danger small">{{ form.unidade_gestora.errors }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">{{ form.orgao_executor.label }}</label>
+            {{ form.orgao_executor }}
+            <div class="form-text">Preencha quando o destino for uma secretaria/órgão público.</div>
+            <div class="text-danger small">{{ form.orgao_executor.errors }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">{{ form.entidade.label }}</label>
+            {{ form.entidade }}
+            <div class="form-text">Preencha quando o destino for uma entidade privada sem fins lucrativos (OSC).</div>
+            <div class="text-danger small">{{ form.entidade.errors }}</div>
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.acao_orcamentaria.label }}</label>
+            {{ form.acao_orcamentaria }}
+            <div class="form-text">Texto que aparece na caixa "Descrição Emenda Impositiva Proposta" do formulário oficial.</div>
+            <div class="text-danger small">{{ form.acao_orcamentaria.errors }}</div>
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.objeto_despesa.label }}</label>
+            {{ form.objeto_despesa }}
+            <div class="text-danger small">{{ form.objeto_despesa.errors }}</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">{{ form.categoria_economica.label }}</label>
+            {{ form.categoria_economica }}
+            <div class="text-danger small">{{ form.categoria_economica.errors }}</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">{{ form.valor_custeio.label }}</label>
+            {{ form.valor_custeio }}
+            <div class="text-danger small">{{ form.valor_custeio.errors }}</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">{{ form.valor_investimento.label }}</label>
+            {{ form.valor_investimento }}
+            <div class="text-danger small">{{ form.valor_investimento.errors }}</div>
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.documentacao_entidade.label }}</label>
+            {{ form.documentacao_entidade }}
+            <div class="form-text">Obrigatório quando a unidade gestora exige documentação da entidade de destino.</div>
+            <div class="text-danger small">{{ form.documentacao_entidade.errors }}</div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-marrom">Salvar rascunho</button>
+        <a href="{% url 'emendas:painel_home' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    const cartao = document.getElementById('cartao-saldo-form');
+    const teto = parseFloat(cartao.dataset.teto || '0');
+    const usadoSemEsta = parseFloat(cartao.dataset.usadoSemEsta || '0');
+    const custeio = document.getElementById('id_valor_custeio');
+    const investimento = document.getElementById('id_valor_investimento');
+    const linha = document.getElementById('saldo-projetado-linha');
+    const spanSaldo = document.getElementById('saldo-projetado');
+
+    function atualizar() {
+        const c = parseFloat(custeio.value || '0') || 0;
+        const i = parseFloat(investimento.value || '0') || 0;
+        const saldo = teto - (usadoSemEsta + c + i);
+        const fmt = saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        if (saldo < 0) {
+            spanSaldo.textContent = 'Limite excedido em R$ ' + Math.abs(saldo).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            linha.className = 'fw-semibold mt-2 text-danger';
+        } else {
+            spanSaldo.textContent = 'R$ ' + fmt;
+            linha.className = 'fw-semibold mt-2 text-success';
+        }
+    }
+    if (custeio && investimento) {
+        custeio.addEventListener('input', atualizar);
+        investimento.addEventListener('input', atualizar);
+        atualizar();
+    }
+})();
+</script>
+{% endblock %}

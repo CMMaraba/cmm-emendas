@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Conferência — {{ emenda.codigo }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Conferência da emenda {{ emenda.codigo }}</h1>
+<p class="text-muted">{{ emenda.autor_nome }} ({{ emenda.partido.sigla }}) — {{ emenda.faixa.nome }}</p>
+
+<div class="card mb-4">
+    <div class="card-header">Mérito enviado pelo gabinete/bancada</div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Função de Governo</dt><dd class="col-sm-9">{{ emenda.funcao_governo }}</dd>
+            <dt class="col-sm-3">Unidade Gestora</dt><dd class="col-sm-9">{{ emenda.unidade_gestora }}</dd>
+            <dt class="col-sm-3">Órgão Executor / OSC</dt><dd class="col-sm-9">{{ emenda.destino_nome }}</dd>
+            <dt class="col-sm-3">Descrição da emenda</dt><dd class="col-sm-9">{{ emenda.acao_orcamentaria }}</dd>
+            <dt class="col-sm-3">Objeto da despesa</dt><dd class="col-sm-9">{{ emenda.objeto_despesa }}</dd>
+            <dt class="col-sm-3">Categoria econômica</dt><dd class="col-sm-9">{{ emenda.get_categoria_economica_display }}</dd>
+            <dt class="col-sm-3">Valor previsto</dt><dd class="col-sm-9">R$ {{ emenda.valor_previsto|floatformat:2 }}
+                (custeio R$ {{ emenda.valor_custeio|floatformat:2 }} / investimento R$ {{ emenda.valor_investimento|floatformat:2 }})</dd>
+            <dt class="col-sm-3">Documentação da entidade</dt>
+            <dd class="col-sm-9">
+                {% if emenda.documentacao_entidade %}
+                    <a href="{{ emenda.documentacao_entidade.url }}" target="_blank">Ver PDF enviado</a>
+                {% else %}
+                    <span class="text-muted">Nenhum anexo{% if emenda.exige_documentacao %} — <strong class="text-danger">obrigatório para este destino!</strong>{% endif %}</span>
+                {% endif %}
+            </dd>
+        </dl>
+    </div>
+</div>
+
+{% if emenda.situacao == 'enviada' %}
+<form method="post" class="mb-4">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="iniciar">
+    <button type="submit" class="btn btn-outline-marrom">Iniciar conferência</button>
+</form>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">Classificação orçamentária (setor técnico)</div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="publicar">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.vinculacao_orcamentaria.label }}</label>
+                    {{ form.vinculacao_orcamentaria }}
+                    <div class="form-text">Classificação Funcional Programática. Ex.: 13 01. 08 244 5003 8.500</div>
+                    <div class="text-danger small">{{ form.vinculacao_orcamentaria.errors }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.data_reserva.label }}</label>
+                    {{ form.data_reserva }}
+                    <div class="text-danger small">{{ form.data_reserva.errors }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.subfuncao_governo.label }}</label>
+                    {{ form.subfuncao_governo }}
+                    <div class="text-danger small">{{ form.subfuncao_governo.errors }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.programa_ppa.label }}</label>
+                    {{ form.programa_ppa }}
+                    <div class="text-danger small">{{ form.programa_ppa.errors }}</div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-marrom mt-3">Salvar e publicar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card border-danger">
+    <div class="card-header text-danger">Devolver para ajuste</div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="devolver">
+            <label class="form-label">{{ devolucao_form.motivo.label }}</label>
+            {{ devolucao_form.motivo }}
+            <div class="text-danger small">{{ devolucao_form.motivo.errors }}</div>
+            <button type="submit" class="btn btn-outline-danger mt-2">Devolver ao gabinete/bancada</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

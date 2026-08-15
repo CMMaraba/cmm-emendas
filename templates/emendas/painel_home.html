@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Meu painel{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Minhas emendas {% if exercicio %}— Exercício {{ exercicio.ano }}{% endif %}</h1>
+
+{% if not exercicio %}
+    <div class="alert alert-warning">Não há exercício orçamentário aberto no momento. Fale com o setor técnico.</div>
+{% elif sem_bancada_no_exercicio %}
+    <div class="alert alert-warning">Sua bancada ainda não foi cadastrada para o exercício {{ exercicio.ano }}.</div>
+{% endif %}
+
+{% if cards %}
+<div class="row g-3 mb-4">
+    {% for card in cards %}
+    <div class="col-md-6">
+        <div class="cartao-saldo {% if card.saldo < 0 %}status-estourado{% elif card.saldo == 0 %}status-atencao{% else %}status-ok{% endif %}">
+            <h2 class="h6 mb-2">{{ card.faixa.nome }}</h2>
+            <div class="d-flex justify-content-between small text-muted">
+                <span>Limite da faixa</span><span>R$ {{ card.teto|floatformat:2 }}</span>
+            </div>
+            <div class="d-flex justify-content-between small text-muted">
+                <span>Já cadastrado</span><span>R$ {{ card.usado|floatformat:2 }}</span>
+            </div>
+            <div class="barra-uso my-2">
+                <div class="preenchida {% if card.saldo < 0 %}estourada{% endif %}"
+                     style="width: {% if card.teto > 0 %}{% widthratio card.usado card.teto 100 %}{% else %}0{% endif %}%;"></div>
+            </div>
+            {% if card.saldo < 0 %}
+                <div class="saldo-valor negativo">Limite excedido em R$ {{ card.saldo|floatformat:2|slice:"1:" }}</div>
+            {% elif card.saldo == 0 %}
+                <div class="text-warning fw-semibold">Limite integralmente utilizado.</div>
+            {% else %}
+                <div class="saldo-valor positivo">Saldo restante: R$ {{ card.saldo|floatformat:2 }}</div>
+            {% endif %}
+            <a class="btn btn-sm btn-marrom mt-2" href="{% url 'emendas:emenda_nova' card.faixa.id %}">
+                <i class="fa-solid fa-plus"></i> Nova emenda nesta faixa
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="h5">Emendas cadastradas</h2>
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Código</th><th>Faixa</th><th>Situação</th><th>Valor previsto</th><th>Atualizada em</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for emenda in emendas %}
+        <tr>
+            <td>{{ emenda.codigo }}</td>
+            <td>{{ emenda.faixa.nome }}</td>
+            <td>
+                <span class="badge
+                    {% if emenda.situacao == 'publicada' %}bg-success
+                    {% elif emenda.situacao == 'devolvida' %}bg-danger
+                    {% elif emenda.situacao == 'rascunho' %}bg-secondary
+                    {% else %}bg-warning text-dark{% endif %}">
+                    {{ emenda.get_situacao_display }}
+                </span>
+            </td>
+            <td>R$ {{ emenda.valor_previsto|floatformat:2 }}</td>
+            <td>{{ emenda.atualizado_em|date:"d/m/Y H:i" }}</td>
+            <td class="text-end">
+                {% if emenda.pode_editar %}
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'emendas:emenda_editar' emenda.pk %}">Editar</a>
+                    <form action="{% url 'emendas:emenda_enviar' emenda.pk %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-amarelo" onclick="return confirm('Enviar esta emenda para conferência do setor técnico?');">Enviar</button>
+                    </form>
+                {% endif %}
+                {% if emenda.situacao == 'devolvida' and emenda.motivo_devolucao %}
+                    <div class="small text-danger mt-1">Motivo: {{ emenda.motivo_devolucao }}</div>
+                {% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="text-center text-muted">Nenhuma emenda cadastrada ainda.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
