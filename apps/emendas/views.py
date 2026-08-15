@@ -115,8 +115,8 @@ def emenda_form(request, pk=None, faixa_id=None):
                     for erro in erros:
                         form.add_error(campo if campo in form.fields else None, erro)
         if form.is_valid():
-            obj = form.save()
-            messages.success(request, f"Emenda {obj.codigo} salva como rascunho.")
+            form.save()
+            messages.success(request, "Rascunho salvo com sucesso.")
             return redirect("emendas:painel_home")
 
     context = {
