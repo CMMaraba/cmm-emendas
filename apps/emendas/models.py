@@ -50,6 +50,14 @@ class Emenda(models.Model):
     autor_bancada = models.ForeignKey(
         Bancada, verbose_name="Bancada", on_delete=models.PROTECT, related_name="emendas", null=True, blank=True
     )
+    proponente = models.ForeignKey(
+        Vereador, verbose_name="Vereador proponente", on_delete=models.PROTECT,
+        related_name="emendas_propostas", null=True, blank=True,
+        help_text=(
+            "Apenas para emendas coletivas: qual vereador da bancada propôs esta emenda "
+            "específica (pode ser diferente do coordenador, que só assina a ata)."
+        ),
+    )
     partido = models.ForeignKey(Partido, verbose_name="Partido Político", on_delete=models.PROTECT, related_name="emendas", editable=False)
     modalidade = models.CharField("Modalidade", max_length=12, choices=Faixa.Modalidade.choices, editable=False)
     tipo_transferencia = models.CharField("Tipo de Transferência", max_length=100, editable=False)
@@ -126,7 +134,7 @@ class Emenda(models.Model):
         unique_together = [("exercicio", "codigo"), ("exercicio", "faixa", "numero")]
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     Q(autor_vereador__isnull=False, autor_bancada__isnull=True)
                     | Q(autor_vereador__isnull=True, autor_bancada__isnull=False)
                 ),
@@ -147,6 +155,8 @@ class Emenda(models.Model):
         if self.autor_vereador_id:
             return self.autor_vereador.nome_parlamentar
         if self.autor_bancada_id:
+            if self.proponente_id:
+                return self.proponente.nome_parlamentar
             return f"Bancada {self.autor_bancada.partido.sigla}"
         return "—"
 
@@ -171,6 +181,11 @@ class Emenda(models.Model):
                 errors["autor_vereador"] = "Faixas individuais exigem um vereador como autor."
             if self.faixa.modalidade == Faixa.Modalidade.COLETIVA and not self.autor_bancada_id:
                 errors["autor_bancada"] = "Faixas coletivas exigem uma bancada como autora."
+            if self.faixa.modalidade == Faixa.Modalidade.INDIVIDUAL and self.proponente_id:
+                errors["proponente"] = "O proponente só se aplica a emendas coletivas."
+        if self.autor_bancada_id and self.proponente_id:
+            if not self.autor_bancada.membros.filter(pk=self.proponente_id).exists():
+                errors["proponente"] = "O proponente deve ser um dos membros da bancada."
         if self.unidade_gestora_id and self.unidade_gestora.exige_documentacao_entidade:
             if not self.entidade_id:
                 errors["entidade"] = "Esta unidade gestora exige selecionar a entidade de destino."

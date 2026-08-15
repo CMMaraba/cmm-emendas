@@ -13,6 +13,7 @@ class EmendaForm(forms.ModelForm):
     class Meta:
         model = Emenda
         fields = [
+            "proponente",
             "funcao_governo",
             "unidade_gestora",
             "orgao_executor",
@@ -37,6 +38,15 @@ class EmendaForm(forms.ModelForm):
         self.fields["orgao_executor"].required = False
         self.fields["entidade"].queryset = Entidade.objects.filter(ativa=True)
         self.fields["entidade"].required = False
+
+        bancada = getattr(self.instance, "autor_bancada", None)
+        if bancada:
+            self.fields["proponente"].queryset = bancada.membros.all()
+            self.fields["proponente"].required = False
+            self.fields["proponente"].help_text = "Qual vereador da bancada propôs esta emenda (opcional)."
+        else:
+            del self.fields["proponente"]
+
         for nome in ("funcao_governo", "unidade_gestora"):
             self.fields[nome].empty_label = "Selecione…"
 

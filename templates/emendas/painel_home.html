@@ -26,7 +26,7 @@
                      style="width: {% if card.teto > 0 %}{% widthratio card.usado card.teto 100 %}{% else %}0{% endif %}%;"></div>
             </div>
             {% if card.saldo < 0 %}
-                <div class="saldo-valor negativo">Limite excedido em R$ {{ card.saldo|floatformat:2|slice:"1:" }}</div>
+                <div class="saldo-valor negativo">Limite excedido em R$ {{ card.saldo_absoluto|floatformat:2 }}</div>
             {% elif card.saldo == 0 %}
                 <div class="text-warning fw-semibold">Limite integralmente utilizado.</div>
             {% else %}

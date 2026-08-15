@@ -50,6 +50,7 @@ def painel_home(request):
         faixas = _faixas_do_usuario(perfil, exercicio)
         for faixa in faixas:
             saldo = faixa.saldo_de(autor)
+            saldo["saldo_absoluto"] = abs(saldo["saldo"])
             cards.append({"faixa": faixa, **saldo})
         if isinstance(autor, Vereador):
             emendas = Emenda.objects.filter(autor_vereador=autor, exercicio=exercicio)

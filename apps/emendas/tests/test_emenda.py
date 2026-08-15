@@ -67,7 +67,7 @@ class TestEnvioBloqueiaEstouro:
         self, exercicio, faixa_coletiva, bancada_mdb, funcao_governo, unidade_gestora_direta,
         orgao_executor, usuario_tecnico,
     ):
-        teto = faixa_coletiva.teto_para(bancada_mdb)
+        teto = faixa_coletiva.teto_para(bancada_mdb).quantize(Decimal("0.01"))
         emenda = _criar_emenda(
             exercicio, faixa_coletiva, funcao_governo, unidade_gestora_direta, usuario_tecnico,
             {"autor_bancada": bancada_mdb}, orgao_executor=orgao_executor, valor_investimento=teto + Decimal("1"),
@@ -81,7 +81,7 @@ class TestEnvioBloqueiaEstouro:
         self, exercicio, faixa_coletiva, bancada_mdb, funcao_governo, unidade_gestora_direta,
         orgao_executor, usuario_tecnico,
     ):
-        teto = faixa_coletiva.teto_para(bancada_mdb)
+        teto = faixa_coletiva.teto_para(bancada_mdb).quantize(Decimal("0.01"))
         emenda = _criar_emenda(
             exercicio, faixa_coletiva, funcao_governo, unidade_gestora_direta, usuario_tecnico,
             {"autor_bancada": bancada_mdb}, orgao_executor=orgao_executor, valor_investimento=teto - Decimal("1"),

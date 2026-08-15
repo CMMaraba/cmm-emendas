@@ -128,7 +128,10 @@ class Faixa(models.Model):
     def teto_por_vereador(self):
         rcl = self.exercicio.rcl_exercicio_anterior
         num_vereadores = self.exercicio.numero_vereadores or 1
-        return (rcl * self.percentual_rcl / Decimal("100")) / Decimal(num_vereadores)
+        bruto = (rcl * self.percentual_rcl / Decimal("100")) / Decimal(num_vereadores)
+        # Arredonda a centavos: é um valor orçamentário, não deve carregar dízima que
+        # gere "estouros de limite" de meio centavo por ruído de arredondamento.
+        return bruto.quantize(Decimal("0.01"))
 
     def teto_para(self, autor):
         """`autor` é um Vereador (faixa individual) ou uma Bancada (faixa coletiva)."""

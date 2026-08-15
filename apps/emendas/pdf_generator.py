@@ -389,7 +389,8 @@ def _montar_dados_pdf(emenda):
 
     if is_coletiva:
         bancada = emenda.autor_bancada
-        vereador_exibicao = bancada.coordenador.nome_parlamentar
+        proponente = emenda.proponente or bancada.coordenador
+        vereador_exibicao = proponente.nome_parlamentar
         partido_sigla = bancada.partido.sigla
         teto_autor = faixa.teto_para(bancada)
     else:

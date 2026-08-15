@@ -22,6 +22,14 @@
     {% endif %}
 
     <div class="row g-3">
+        {% if form.proponente %}
+        <div class="col-12">
+            <label class="form-label">{{ form.proponente.label }}</label>
+            {{ form.proponente }}
+            <div class="form-text">{{ form.proponente.help_text }}</div>
+            <div class="text-danger small">{{ form.proponente.errors }}</div>
+        </div>
+        {% endif %}
         <div class="col-md-6">
             <label class="form-label">{{ form.funcao_governo.label }}</label>
             {{ form.funcao_governo }}

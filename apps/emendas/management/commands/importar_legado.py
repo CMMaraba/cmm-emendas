@@ -152,6 +152,16 @@ class Command(BaseCommand):
             bancada = Bancada.objects.get(partido=partido, exercicio=self.exercicio)
             self._garantir_ata(bancada, partido.sigla)
             autor_kwargs = {"autor_bancada": bancada}
+            nome_proponente = (linha["vereador"] or "").strip()
+            if nome_proponente:
+                proponente = Vereador.objects.filter(nome_parlamentar=nome_proponente).first()
+                if proponente and bancada.membros.filter(pk=proponente.pk).exists():
+                    autor_kwargs["proponente"] = proponente
+                elif proponente:
+                    self.avisos.append(
+                        f"{linha['codigo']}: proponente '{nome_proponente}' não é membro "
+                        f"cadastrado da bancada {partido.sigla} — mantido sem proponente."
+                    )
         else:
             vereador = Vereador.objects.get(nome_parlamentar=linha["vereador"].strip())
             if vereador.partido_id != partido.id:
