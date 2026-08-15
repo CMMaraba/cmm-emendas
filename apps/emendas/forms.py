@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django import forms
 
-from apps.orcamento.models import Entidade, OrgaoExecutor, ProgramaPPA, resolver_classificacao_funcional
+from apps.orcamento.models import Entidade, OrgaoExecutor, ProgramaPPA, UnidadeGestora, resolver_classificacao_funcional
 
 from .models import CategoriaEconomica, Emenda
 
@@ -25,6 +25,25 @@ class EntidadeSelect(forms.Select):
         return option
 
 
+class UnidadeGestoraSelect(forms.Select):
+    """Marca cada opção com data-exige-entidade — usado pelo JS do formulário para só
+    habilitar o dropdown de Entidade (OSC) quando a Unidade Gestora selecionada for a
+    que exige documentação de entidade. Sem isso, o vereador podia escolher uma OSC que
+    o clean() do formulário descartava silenciosamente (a entidade só é aceita quando a
+    unidade gestora exige documentação — ver EmendaForm.clean())."""
+
+    def __init__(self, *args, **kwargs):
+        self.ids_exige_entidade = set()
+        super().__init__(*args, **kwargs)
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        valor = getattr(value, "value", value)
+        if valor and int(valor) in self.ids_exige_entidade:
+            option["attrs"]["data-exige-entidade"] = "1"
+        return option
+
+
 class EmendaForm(forms.ModelForm):
     """Formulário do mérito, preenchido pelo gabinete ou pela bancada.
 
@@ -33,13 +52,18 @@ class EmendaForm(forms.ModelForm):
     (ver EmendaConferenciaForm e apps.orcamento.models.resolver_classificacao_funcional).
     """
 
+    unidade_gestora = forms.ModelChoiceField(
+        label="Unidade Gestora Vinculada",
+        queryset=UnidadeGestora.objects.all(),
+        widget=UnidadeGestoraSelect(),
+    )
     entidade = forms.ModelChoiceField(
         label="Entidade (OSC)",
         queryset=Entidade.objects.filter(ativa=True).order_by("nome"),
         required=False,
         empty_label="Selecione…",
         widget=EntidadeSelect(),
-        help_text="Selecione quando o destino for uma entidade privada sem fins lucrativos (OSC).",
+        help_text="Só pode ser escolhida quando a Unidade Gestora Vinculada for \"Entidade Privada Sem Fins Lucrativos\".",
     )
 
     class Meta:
@@ -76,6 +100,9 @@ class EmendaForm(forms.ModelForm):
             .exclude(documentacao="")
             .exclude(documentacao__isnull=True)
             .values_list("id", flat=True)
+        )
+        self.fields["unidade_gestora"].widget.ids_exige_entidade = set(
+            UnidadeGestora.objects.filter(exige_documentacao_entidade=True).values_list("id", flat=True)
         )
 
         bancada = getattr(self.instance, "autor_bancada", None)

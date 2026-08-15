@@ -150,15 +150,35 @@
     const selectEntidade = document.getElementById('id_entidade');
     const inputDocumentacao = document.getElementById('id_documentacao_entidade');
     const avisoDocumentacao = document.getElementById('aviso-documentacao-existente');
-    if (selectEntidade && inputDocumentacao && avisoDocumentacao) {
-        function atualizarDocumentacao() {
-            const opcao = selectEntidade.options[selectEntidade.selectedIndex];
-            const temDocumentacao = !!(opcao && opcao.dataset.temDocumentacao === '1');
-            inputDocumentacao.disabled = temDocumentacao;
-            avisoDocumentacao.style.display = temDocumentacao ? '' : 'none';
-        }
+    function atualizarDocumentacao() {
+        if (!selectEntidade || !inputDocumentacao || !avisoDocumentacao) return;
+        const opcao = selectEntidade.options[selectEntidade.selectedIndex];
+        const temDocumentacao = !!(opcao && opcao.dataset.temDocumentacao === '1');
+        inputDocumentacao.disabled = temDocumentacao;
+        avisoDocumentacao.style.display = temDocumentacao ? '' : 'none';
+    }
+    if (selectEntidade) {
         selectEntidade.addEventListener('change', atualizarDocumentacao);
         atualizarDocumentacao();
+    }
+
+    // Entidade (OSC) só faz sentido quando a Unidade Gestora escolhida é a que exige
+    // documentação de entidade — nas demais, o formulário descarta a entidade ao salvar
+    // (ver EmendaForm.clean()), então desabilitar aqui evita escolher algo que não vai
+    // ser salvo.
+    const selectUnidadeGestora = document.getElementById('id_unidade_gestora');
+    if (selectUnidadeGestora && selectEntidade) {
+        function atualizarEntidadeHabilitada() {
+            const opcao = selectUnidadeGestora.options[selectUnidadeGestora.selectedIndex];
+            const exigeEntidade = !!(opcao && opcao.dataset.exigeEntidade === '1');
+            selectEntidade.disabled = !exigeEntidade;
+            if (!exigeEntidade) {
+                selectEntidade.value = '';
+                atualizarDocumentacao();
+            }
+        }
+        selectUnidadeGestora.addEventListener('change', atualizarEntidadeHabilitada);
+        atualizarEntidadeHabilitada();
     }
 })();
 </script>

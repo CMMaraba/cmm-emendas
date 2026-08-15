@@ -28,12 +28,12 @@ AREAS = [
 ]
 
 UNIDADES_GESTORAS = [
+    ("Entidade Privada Sem Fins Lucrativos", True),
     ("Prefeitura Administração Direta", False),
     ("Prefeitura Administração Indireta (SSAM)", False),
     ("Prefeitura Administração Indireta (Fundação Casa da Cultura)", False),
     ("Prefeitura Administração Indireta (SDU)", False),
     ("Prefeitura Administração Indireta (IPASEMAR)", False),
-    ("Entidade Privada Sem Fins Lucrativos", True),
 ]
 
 # (nome parlamentar, sigla do partido)

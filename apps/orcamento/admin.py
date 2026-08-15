@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
 
 from .models import (
@@ -97,3 +97,26 @@ class ProgramaPPAAdmin(admin.ModelAdmin):
     list_display = ("codigo", "nome", "exercicio")
     list_filter = ("exercicio",)
     search_fields = ("codigo", "nome")
+    actions = ["clonar_para_proximo_exercicio"]
+
+    @admin.action(description="Clonar programa(s) selecionado(s) para o próximo exercício")
+    def clonar_para_proximo_exercicio(self, request, queryset):
+        for programa in queryset:
+            proximo_ano = programa.exercicio.ano + 1
+            proximo_exercicio = Exercicio.objects.filter(ano=proximo_ano).first()
+            if not proximo_exercicio:
+                self.message_user(
+                    request,
+                    f"Não existe exercício {proximo_ano} cadastrado — crie-o antes de clonar o programa {programa.codigo}.",
+                    level=messages.WARNING,
+                )
+                continue
+            if ProgramaPPA.objects.filter(exercicio=proximo_exercicio, codigo=programa.codigo).exists():
+                self.message_user(
+                    request, f"Programa {programa.codigo} já existe em {proximo_ano} — ignorado.", level=messages.WARNING
+                )
+                continue
+            ProgramaPPA.objects.create(
+                exercicio=proximo_exercicio, codigo=programa.codigo, nome=programa.nome, objetivos=programa.objetivos,
+            )
+            self.message_user(request, f"Programa {programa.codigo} clonado para {proximo_ano}.")
