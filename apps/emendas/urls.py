@@ -9,6 +9,7 @@ urlpatterns = [
     path("emenda/nova/<int:faixa_id>/", views.emenda_form, name="emenda_nova"),
     path("emenda/<int:pk>/editar/", views.emenda_form, name="emenda_editar"),
     path("emenda/<int:pk>/enviar/", views.emenda_enviar, name="emenda_enviar"),
+    path("emenda/<int:pk>/excluir/", views.emenda_excluir, name="emenda_excluir"),
     path("conferencia/", views.conferencia_lista, name="conferencia_lista"),
     path("conferencia/<int:pk>/", views.conferencia_detalhe, name="conferencia_detalhe"),
     path("conferencia/vinculacao/validar/", views.validar_vinculacao, name="validar_vinculacao"),

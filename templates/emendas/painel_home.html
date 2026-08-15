@@ -72,6 +72,10 @@
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-amarelo" onclick="return confirm('Enviar esta emenda para conferência do setor técnico?');">Enviar</button>
                     </form>
+                    <form action="{% url 'emendas:emenda_excluir' emenda.pk %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Excluir esta emenda? Esta ação não pode ser desfeita.');">Excluir</button>
+                    </form>
                 {% endif %}
                 {% if emenda.situacao == 'devolvida' and emenda.motivo_devolucao %}
                     <div class="small text-danger mt-1">Motivo: {{ emenda.motivo_devolucao }}</div>

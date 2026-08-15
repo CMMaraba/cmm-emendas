@@ -44,10 +44,10 @@
             <div class="text-danger small">{{ form.orgao_executor.errors }}</div>
         </div>
         <div class="col-md-6">
-            <label class="form-label">{{ form.entidade_nome.label }}</label>
-            {{ form.entidade_nome }}
-            <div class="form-text">{{ form.entidade_nome.help_text }}</div>
-            <div class="text-danger small">{{ form.entidade_nome.errors }}</div>
+            <label class="form-label">{{ form.entidade.label }}</label>
+            {{ form.entidade }}
+            <div class="form-text">{{ form.entidade.help_text }}</div>
+            <div class="text-danger small">{{ form.entidade.errors }}</div>
         </div>
         <div class="col-12">
             <label class="form-label">{{ form.acao_orcamentaria.label }}</label>
@@ -80,6 +80,9 @@
             <label class="form-label">{{ form.documentacao_entidade.label }}</label>
             {{ form.documentacao_entidade }}
             <div class="form-text">Obrigatório quando a unidade gestora exige documentação da entidade de destino.</div>
+            <div id="aviso-documentacao-existente" class="form-text text-success" style="display: none;">
+                A documentação desta entidade já foi enviada anteriormente — não é necessário enviar novamente.
+            </div>
             <div class="text-danger small">{{ form.documentacao_entidade.errors }}</div>
         </div>
     </div>
@@ -142,6 +145,20 @@
         custeio.addEventListener('input', atualizar);
         investimento.addEventListener('input', atualizar);
         atualizar();
+    }
+
+    const selectEntidade = document.getElementById('id_entidade');
+    const inputDocumentacao = document.getElementById('id_documentacao_entidade');
+    const avisoDocumentacao = document.getElementById('aviso-documentacao-existente');
+    if (selectEntidade && inputDocumentacao && avisoDocumentacao) {
+        function atualizarDocumentacao() {
+            const opcao = selectEntidade.options[selectEntidade.selectedIndex];
+            const temDocumentacao = !!(opcao && opcao.dataset.temDocumentacao === '1');
+            inputDocumentacao.disabled = temDocumentacao;
+            avisoDocumentacao.style.display = temDocumentacao ? '' : 'none';
+        }
+        selectEntidade.addEventListener('change', atualizarDocumentacao);
+        atualizarDocumentacao();
     }
 })();
 </script>

@@ -157,6 +157,24 @@ def emenda_enviar(request, pk):
     return redirect("emendas:painel_home")
 
 
+@perfil_obrigatorio
+def emenda_excluir(request, pk):
+    if request.method != "POST":
+        return redirect("emendas:painel_home")
+    emenda = get_object_or_404(Emenda, pk=pk)
+    perfil = getattr(request.user, "perfil", None)
+    autor = _autor_do_usuario(perfil, emenda.exercicio) if perfil else None
+    if not (request.user.is_superuser or _emenda_pertence_ao_autor(emenda, autor)):
+        raise PermissionDenied
+    if not emenda.pode_editar():
+        messages.error(request, "Esta emenda não pode mais ser excluída no estado atual.")
+        return redirect("emendas:painel_home")
+    codigo = emenda.codigo or "(rascunho)"
+    emenda.delete()
+    messages.success(request, f"Emenda {codigo} excluída.")
+    return redirect("emendas:painel_home")
+
+
 @tecnico_obrigatorio
 def conferencia_lista(request):
     base = Emenda.objects.select_related("faixa", "autor_vereador", "autor_bancada", "autor_bancada__partido")

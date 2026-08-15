@@ -1,31 +1,28 @@
 from decimal import Decimal
 
 from django import forms
-from django.utils.html import format_html, format_html_join
 
 from apps.orcamento.models import Entidade, OrgaoExecutor, ProgramaPPA, resolver_classificacao_funcional
 
 from .models import CategoriaEconomica, Emenda
 
 
-class EntidadeTextWidget(forms.TextInput):
-    """Campo digitável com sugestões (datalist) das entidades já cadastradas, em vez de
-    um dropdown com as 148+ OSCs — a entidade continua vinculada por FK, só a forma de
-    escolher deixa de ser uma lista fixa."""
+class EntidadeSelect(forms.Select):
+    """Dropdown de entidades com um data-attribute por opção indicando se a entidade já
+    tem documentação cadastrada (Entidade.documentacao) — usado pelo JS do formulário
+    para desabilitar o upload de PDF por emenda quando já existe documentação no
+    cadastro da entidade, evitando reenvio duplicado."""
 
-    def __init__(self, attrs=None):
-        base_attrs = {"list": "entidades-lista", "autocomplete": "off", "placeholder": "Digite o nome da entidade…"}
-        if attrs:
-            base_attrs.update(attrs)
-        super().__init__(attrs=base_attrs)
+    def __init__(self, *args, **kwargs):
+        self.ids_com_documentacao = set()
+        super().__init__(*args, **kwargs)
 
-    def render(self, name, value, attrs=None, renderer=None):
-        html = super().render(name, value, attrs, renderer)
-        opcoes = format_html_join(
-            "", '<option value="{}">',
-            ((e.nome,) for e in Entidade.objects.filter(ativa=True).order_by("nome")),
-        )
-        return format_html('{}<datalist id="entidades-lista">{}</datalist>', html, opcoes)
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        valor = getattr(value, "value", value)
+        if valor and int(valor) in self.ids_com_documentacao:
+            option["attrs"]["data-tem-documentacao"] = "1"
+        return option
 
 
 class EmendaForm(forms.ModelForm):
@@ -36,11 +33,13 @@ class EmendaForm(forms.ModelForm):
     (ver EmendaConferenciaForm e apps.orcamento.models.resolver_classificacao_funcional).
     """
 
-    entidade_nome = forms.CharField(
+    entidade = forms.ModelChoiceField(
         label="Entidade (OSC)",
+        queryset=Entidade.objects.filter(ativa=True).order_by("nome"),
         required=False,
-        widget=EntidadeTextWidget(),
-        help_text="Preencha quando o destino for uma entidade privada sem fins lucrativos (OSC). Comece a digitar para ver as já cadastradas.",
+        empty_label="Selecione…",
+        widget=EntidadeSelect(),
+        help_text="Selecione quando o destino for uma entidade privada sem fins lucrativos (OSC).",
     )
 
     class Meta:
@@ -49,6 +48,7 @@ class EmendaForm(forms.ModelForm):
             "proponente",
             "unidade_gestora",
             "orgao_executor",
+            "entidade",
             "acao_orcamentaria",
             "objeto_despesa",
             "categoria_economica",
@@ -71,8 +71,12 @@ class EmendaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["orgao_executor"].queryset = OrgaoExecutor.objects.filter(ativo=True)
         self.fields["orgao_executor"].required = False
-        if self.instance.pk and self.instance.entidade_id:
-            self.fields["entidade_nome"].initial = self.instance.entidade.nome
+        self.fields["entidade"].widget.ids_com_documentacao = set(
+            Entidade.objects.filter(ativa=True)
+            .exclude(documentacao="")
+            .exclude(documentacao__isnull=True)
+            .values_list("id", flat=True)
+        )
 
         bancada = getattr(self.instance, "autor_bancada", None)
         if bancada:
@@ -99,37 +103,18 @@ class EmendaForm(forms.ModelForm):
                 self.add_error("valor_custeio", "Informe um valor de custeio maior que zero.")
             cleaned["valor_investimento"] = Decimal("0")
 
-        nome_digitado = (cleaned.get("entidade_nome") or "").strip()
-        entidade = None
-        if nome_digitado:
-            entidade = Entidade.objects.filter(nome__iexact=nome_digitado, ativa=True).first()
-            if not entidade:
-                self.add_error(
-                    "entidade_nome",
-                    "Entidade não encontrada no cadastro ativo. Confira o nome exato ou "
-                    "peça ao setor técnico para cadastrá-la antes de enviar.",
-                )
-        cleaned["entidade"] = entidade
-
+        entidade = cleaned.get("entidade")
         unidade_gestora = cleaned.get("unidade_gestora")
         orgao_executor = cleaned.get("orgao_executor")
         if unidade_gestora and unidade_gestora.exige_documentacao_entidade:
             if not entidade:
-                self.add_error("entidade_nome", "Informe a entidade de destino para esta unidade gestora.")
+                self.add_error("entidade", "Informe a entidade de destino para esta unidade gestora.")
             cleaned["orgao_executor"] = None
         elif unidade_gestora:
             if not orgao_executor:
                 self.add_error("orgao_executor", "Selecione o órgão executor.")
             cleaned["entidade"] = None
         return cleaned
-
-    def _post_clean(self):
-        # "entidade" não é um campo do form (Meta.fields) — precisa estar na instance
-        # antes do Emenda.clean() (chamado por instance.full_clean() dentro do
-        # super()._post_clean()), senão a validação de "unidade gestora exige entidade"
-        # roda achando que nada foi preenchido.
-        self.instance.entidade = self.cleaned_data.get("entidade")
-        super()._post_clean()
 
     def save(self, commit=True):
         instance = super().save(commit=False)

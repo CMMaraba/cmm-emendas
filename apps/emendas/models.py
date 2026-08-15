@@ -215,6 +215,16 @@ class Emenda(models.Model):
     def exige_documentacao(self):
         return bool(self.unidade_gestora_id and self.unidade_gestora.exige_documentacao_entidade)
 
+    @property
+    def documentacao_satisfeita(self):
+        # A entidade pode já ter documentação própria cadastrada (Entidade.documentacao,
+        # mantida pelo setor técnico) — nesse caso o vereador/bancada não precisa reenviar
+        # o mesmo PDF por emenda (ver EmendaForm/emenda_form.html: o campo de upload fica
+        # desabilitado quando a entidade selecionada já tem documentação).
+        if self.documentacao_entidade:
+            return True
+        return bool(self.entidade_id and self.entidade.documentacao)
+
     def clean(self):
         errors = {}
         if bool(self.autor_vereador_id) == bool(self.autor_bancada_id):
@@ -277,7 +287,7 @@ class Emenda(models.Model):
     def enviar(self):
         if not self.pode_editar():
             raise ValidationError("Esta emenda não pode ser enviada no estado atual.")
-        if self.exige_documentacao and not self.documentacao_entidade:
+        if self.exige_documentacao and not self.documentacao_satisfeita:
             raise ValidationError("A documentação da entidade de destino é obrigatória para este destino.")
         saldo = self.faixa.saldo_de(self.autor)
         if saldo["saldo"] < 0:
