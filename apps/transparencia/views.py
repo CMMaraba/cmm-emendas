@@ -42,9 +42,9 @@ def _publicadas(faixa=None, exercicio=None):
 
 
 def _linha(emenda, request):
-    doc_url = ""
-    if emenda.documentacao_entidade or (emenda.autor_bancada_id and emenda.autor_bancada.ata) or emenda.anexos.exists():
-        doc_url = request.build_absolute_uri(reverse("transparencia:emenda_pdf", args=[emenda.pk]))
+    # Toda emenda publicada tem o formulário oficial disponível (gerado na publicação,
+    # com ata/documentação da entidade mesclada quando houver) — não só quando há anexo.
+    doc_url = request.build_absolute_uri(reverse("transparencia:emenda_pdf", args=[emenda.pk]))
     return [
         emenda.numero,
         emenda.codigo,
@@ -195,7 +195,14 @@ def emenda_pdf(request, pk):
     emenda = get_object_or_404(Emenda, pk=pk)
     if emenda.situacao != Emenda.Situacao.PUBLICADA and not request.user.is_authenticated:
         raise Http404("Emenda não publicada.")
-    buffer = gerar_pdf_emenda(emenda)
-    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+
+    # Emenda publicada já tem o "documento físico" congelado no momento da publicação
+    # (Emenda._gerar_pdf_oficial) — serve esse arquivo, não gera de novo. Só gera ao vivo
+    # para pré-visualização de emenda ainda não publicada (setor técnico, autenticado).
+    if emenda.situacao == Emenda.Situacao.PUBLICADA and emenda.pdf_gerado:
+        response = HttpResponse(emenda.pdf_gerado.read(), content_type="application/pdf")
+    else:
+        buffer = gerar_pdf_emenda(emenda)
+        response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{emenda.codigo or emenda.pk}.pdf"'
     return response

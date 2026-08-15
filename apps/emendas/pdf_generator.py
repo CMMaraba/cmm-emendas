@@ -153,6 +153,41 @@ def underline_field(c, x, y, width):
     c.line(x, y - 2, x + width, y - 2)
 
 
+def draw_footer(c, base_legal):
+    """Rodapé com a base legal do exercício (Exercicio.base_legal) — texto configurável
+    pelo setor técnico, que antes existia no cadastro mas nunca era impresso em lugar
+    nenhum."""
+    if not base_legal:
+        return
+    set_font(c, italic=True, size=8)
+    c.setFillGray(0.45)
+    y = MARGIN_B - 18
+    for linha in _quebrar_linhas(c, base_legal, CONTENT_W, "Arial-Italic", 8):
+        c.drawCentredString(PAGE_W / 2, y, linha)
+        y -= 10
+    c.setFillGray(0)
+
+
+def draw_caixa_texto(c, y, titulo, texto):
+    draw_underlined_section_title(c, titulo, MARGIN_L, y, size=FS_NORMAL)
+    y -= 10
+
+    conteudo = texto or "—"
+    padding = 20
+    inner_w = CONTENT_W - 20
+    lh_box = leading(FS_BOX)
+    text_h = wrapped_text_height(c, conteudo, inner_w, "Arial", FS_BOX, lh_box)
+    box_h = max(text_h + 30, 50)
+
+    original_line_width = c._lineWidth
+    c.setLineWidth(1.5)
+    c.rect(MARGIN_L, y - box_h, CONTENT_W, box_h)
+    c.setLineWidth(original_line_width)
+
+    draw_wrapped_text(c, conteudo, MARGIN_L + padding, y - padding - 2, inner_w, "Arial", FS_BOX, lh_box)
+    return y - box_h - 15
+
+
 def format_brl(value):
     return f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
@@ -174,10 +209,20 @@ def build_page1(c, data):
     ld = leading(FS_NORMAL)
     set_font(c, size=FS_NORMAL)
 
-    c.drawString(MARGIN_L, y, f"Vereador: {data['vereador_exibicao']}")
-    if is_coletiva:
-        c.drawString(PAGE_W / 2, y, f"Partido: {data['partido_sigla']}")
+    c.drawString(MARGIN_L, y, f"Emenda nº: {data['codigo'] or '(a numerar na publicação)'}")
+    c.drawString(PAGE_W / 2, y, f"Tipo de Transferência: {data['tipo_transferencia'] or '—'}")
     y -= ld
+
+    label_vereador = "Vereador proponente" if is_coletiva else "Vereador"
+    c.drawString(MARGIN_L, y, f"{label_vereador}: {data['vereador_exibicao']}")
+    c.drawString(PAGE_W / 2, y, f"Partido: {data['partido_sigla']}")
+    y -= ld
+
+    if is_coletiva and data["coordenador_nome"] and data["coordenador_nome"] != data["vereador_exibicao"]:
+        set_font(c, italic=True, size=FS_OBS)
+        c.drawString(MARGIN_L, y, f"Coordenador(a) da bancada: {data['coordenador_nome']}")
+        set_font(c, size=FS_NORMAL)
+        y -= leading(FS_OBS, 6)
 
     value_rows = [
         (f"Valor da Receita Corrente Líquida do Exercício de {data['ano_referencia_rcl']}", data["receita_corrente_liquida_str"]),
@@ -208,6 +253,11 @@ def build_page1(c, data):
     else:
         y -= 8
 
+    if data["destino_nome"]:
+        set_font(c, size=FS_NORMAL)
+        c.drawString(MARGIN_L, y, f"Destino: {data['destino_nome']}")
+        y -= ld + 6
+
     draw_underlined_section_title(c, "ÁREA DE APLICAÇÃO CONTEMPLADA", MARGIN_L, y, size=FS_NORMAL)
     y -= leading(FS_NORMAL, 10)
 
@@ -237,23 +287,8 @@ def build_page1(c, data):
         y -= row_h
     y -= 10
 
-    draw_underlined_section_title(c, "DESCRIÇÃO EMENDA IMPOSITIVA PROPOSTA", MARGIN_L, y, size=FS_NORMAL)
-    y -= 10
-
-    descricao = data["descricao_emenda"] or "Sem descrição"
-    padding = 20
-    inner_w = CONTENT_W - 20
-    lh_box = leading(FS_BOX)
-    text_h = wrapped_text_height(c, descricao, inner_w, "Arial", FS_BOX, lh_box)
-    box_h = max(text_h + 30, 50)
-
-    original_line_width = c._lineWidth
-    c.setLineWidth(1.5)
-    c.rect(MARGIN_L, y - box_h, CONTENT_W, box_h)
-    c.setLineWidth(original_line_width)
-
-    draw_wrapped_text(c, descricao, MARGIN_L + padding, y - padding - 2, inner_w, "Arial", FS_BOX, lh_box)
-    y -= box_h + 5
+    y = draw_caixa_texto(c, y, "AÇÃO ORÇAMENTÁRIA", data["descricao_emenda"])
+    y = draw_caixa_texto(c, y, "OBJETO DA DESPESA", data["objeto_despesa"])
     return y
 
 
@@ -334,13 +369,14 @@ def build_page2(c, data):
     c.drawString(MARGIN_L + inner_pad, iy, lbl_res)
     xr = MARGIN_L + inner_pad + c.stringWidth(lbl_res, "Arial", FS_NORMAL)
     underline_padding = 5
+    larguras_min = {0: 25, 2: 32, 4: 38}
 
-    for parte in (data["dia_reserva_str"], "/", data["mes_reserva_str"], "/", data["ano_reserva_str"]):
+    for i, parte in enumerate((data["dia_reserva_str"], "/", data["mes_reserva_str"], "/", data["ano_reserva_str"])):
         if parte == "/":
             c.drawString(xr, iy, "/")
             xr += c.stringWidth("/", "Arial", FS_NORMAL) + 2
             continue
-        tamanho = c.stringWidth(parte, "Arial", FS_NORMAL) + underline_padding * 2
+        tamanho = max(c.stringWidth(parte, "Arial", FS_NORMAL) + underline_padding * 2, larguras_min[i])
         c.drawString(xr + (tamanho - c.stringWidth(parte, "Arial", FS_NORMAL)) / 2, iy, parte)
         underline_field(c, xr, iy, tamanho)
         xr += tamanho + 2
@@ -349,6 +385,7 @@ def build_page2(c, data):
     sig2_w = 275
     c.line(PAGE_W / 2 - sig2_w / 2, iy, PAGE_W / 2 + sig2_w / 2, iy)
 
+    draw_footer(c, data["base_legal"])
     return box_top - box_h
 
 
@@ -422,9 +459,22 @@ def _montar_dados_pdf(emenda):
     areas = list(FuncaoGoverno.objects.order_by("ordem", "nome").values_list("nome", flat=True))
     unidades = list(UnidadeGestora.objects.order_by("ordem", "nome").values_list("nome", flat=True))
 
+    if emenda.entidade_id:
+        destino_nome = f"{emenda.entidade.nome} (Entidade Privada Sem Fins Lucrativos)"
+    elif emenda.orgao_executor_id:
+        destino_nome = emenda.orgao_executor.nome
+    else:
+        destino_nome = ""
+
     return {
         "exercicio_ano": exercicio.ano,
         "is_coletiva": is_coletiva,
+        "codigo": emenda.codigo or "",
+        "tipo_transferencia": emenda.tipo_transferencia or "",
+        "destino_nome": destino_nome,
+        "objeto_despesa": emenda.objeto_despesa,
+        "base_legal": exercicio.base_legal,
+        "coordenador_nome": bancada.coordenador.nome_parlamentar if is_coletiva else "",
         "vereador_exibicao": vereador_exibicao,
         "partido_sigla": partido_sigla,
         "receita_corrente_liquida_str": format_brl(float(exercicio.rcl_exercicio_anterior)),
@@ -471,8 +521,14 @@ def gerar_pdf_emenda(emenda):
 
     if emenda.autor_bancada_id and emenda.autor_bancada.ata:
         pdfs_to_merge.append(emenda.autor_bancada.ata)
-    if emenda.entidade_id and emenda.entidade.documentacao:
-        pdfs_to_merge.append(emenda.entidade.documentacao)
+    # Documentação da OSC: prioriza o PDF enviado nesta emenda especificamente
+    # (Emenda.documentacao_entidade) e só recorre à documentação central da entidade
+    # (Entidade.documentacao) quando a própria emenda não trouxe um — evita mesclar os
+    # dois PDFs redundantes quando o vereador não precisou reenviar (ver
+    # Emenda.documentacao_satisfeita).
+    documentacao_osc = emenda.documentacao_entidade or (emenda.entidade.documentacao if emenda.entidade_id else None)
+    if documentacao_osc:
+        pdfs_to_merge.append(documentacao_osc)
     for anexo in emenda.anexos.order_by("ordem"):
         if anexo.arquivo:
             pdfs_to_merge.append(anexo.arquivo)

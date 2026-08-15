@@ -326,7 +326,22 @@ class Emenda(models.Model):
             self.situacao = self.Situacao.PUBLICADA
             self.conferida_por = usuario
             self.publicada_em = timezone.now()
+            self._gerar_pdf_oficial()
             self.save()
+
+    def _gerar_pdf_oficial(self):
+        # Congela o "documento físico" da emenda (formulário ticado + ata da bancada ou
+        # documentação da entidade, já mesclados) no momento da publicação — é isso que
+        # a tabela pública passa a servir (ver transparencia.views.emenda_pdf), e é o que
+        # ficará disponível para assinatura digital no futuro. Reexecuta a cada nova
+        # publicação (inclusive republicação após devolver()), para refletir dados
+        # atualizados.
+        from django.core.files.base import ContentFile
+
+        from apps.emendas.pdf_generator import gerar_pdf_emenda
+
+        buffer = gerar_pdf_emenda(self)
+        self.pdf_gerado.save(f"{self.codigo}.pdf", ContentFile(buffer.read()), save=False)
 
     def devolver(self, usuario, motivo):
         # Inclui PUBLICADA de propósito: o Vereador pode querer alterar algo depois de
