@@ -167,10 +167,14 @@ class Emenda(models.Model):
         verbose_name = "Emenda"
         verbose_name_plural = "Emendas"
         ordering = ["exercicio", "faixa", "numero"]
-        unique_together = [
-            ("exercicio", "codigo"),
-            ("exercicio", "modalidade", "tipo_transferencia", "numero"),
-        ]
+        # Só o código é travado por unicidade. O "numero" sozinho NÃO pode ter unique
+        # constraint aqui: as 689 emendas importadas do legado têm numero repetido entre
+        # as faixas de 1,55% e 2,00% (cada uma tinha seu próprio contador reiniciando do
+        # zero) — exatamente o histórico que gerou os "289 códigos duplicados" do
+        # sistema antigo. A proteção contra duplicidade de verdade é o código (sempre
+        # único, calculado atomicamente em _atribuir_numero_codigo) e a query, também
+        # atômica, que soma 1 ao maior "numero" já usado por modalidade+tipo.
+        unique_together = [("exercicio", "codigo")]
         constraints = [
             models.CheckConstraint(
                 condition=(
