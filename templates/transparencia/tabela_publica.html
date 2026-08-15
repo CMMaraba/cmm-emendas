@@ -64,14 +64,12 @@
                 <tr>
                     <td>{{ emenda.numero }}</td>
                     <td>{{ emenda.codigo }}</td>
-                    <td>{{ emenda.exercicio.ano }}</td>
+                    <td>{{ emenda.exercicio.ano|unlocalize }}</td>
                     <td>{{ emenda.municipio }}</td>
                     <td>{{ emenda.autor_nome }}</td>
                     <td>{{ emenda.partido.sigla }}</td>
                     <td>
-                        {% if emenda.documentacao_entidade or emenda.autor_bancada.ata or emenda.anexos.exists %}
-                            <a href="{% url 'transparencia:emenda_pdf' emenda.pk %}" target="_blank">PDF</a>
-                        {% else %}—{% endif %}
+                        <a href="{% url 'transparencia:emenda_pdf' emenda.pk %}" target="_blank">PDF</a>
                     </td>
                     <td>{{ emenda.get_modalidade_display }}</td>
                     <td>{{ emenda.tipo_transferencia }}</td>

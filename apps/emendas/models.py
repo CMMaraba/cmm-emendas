@@ -357,6 +357,11 @@ class Emenda(models.Model):
         self.situacao = self.Situacao.DEVOLVIDA
         self.conferida_por = usuario
         self.motivo_devolucao = motivo
+        # O PDF oficial (formulário + ata/documentação mesclados) reflete um estado que
+        # não é mais válido — apaga para não deixar um documento desatualizado
+        # disponível; _gerar_pdf_oficial() recria do zero quando (e se) for republicada.
+        if self.pdf_gerado:
+            self.pdf_gerado.delete(save=False)
         self.save()
 
 
