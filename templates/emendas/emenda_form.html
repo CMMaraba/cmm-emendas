@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block title %}{% if emenda.pk %}Editar emenda{% else %}Nova emenda{% endif %}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-1">{% if emenda.pk %}Editar emenda {{ emenda.codigo|default:"(ainda sem número)" }}{% else %}Nova emenda — {{ faixa.nome }}{% endif %}</h1>
 <p class="text-muted">Faixa: {{ faixa.nome }} ({{ faixa.get_modalidade_display }})</p>
 
 <div class="cartao-saldo mb-4" id="cartao-saldo-form"
-     data-teto="{{ teto }}" data-usado-sem-esta="{{ usado_sem_esta }}">
+     data-teto="{{ teto|unlocalize }}" data-usado-sem-esta="{{ usado_sem_esta|unlocalize }}">
     <div class="d-flex justify-content-between small text-muted">
         <span>Limite da faixa</span><span>R$ <span id="saldo-teto">{{ teto|floatformat:2 }}</span></span>
     </div>
