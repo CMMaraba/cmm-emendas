@@ -44,9 +44,7 @@
         <table class="table table-striped table-sm">
             <thead>
                 <tr>
-                    <th>Nº</th><th>Código</th><th>Vereador</th><th>Partido</th>
-                    <th>Órgão Executor / OSC</th><th>Objeto da Despesa</th>
-                    <th>Valor Previsto (R$)</th><th>Documentos</th>
+                    {% for coluna in colunas %}<th>{{ coluna }}</th>{% endfor %}
                 </tr>
             </thead>
             <tbody>
@@ -54,15 +52,32 @@
                 <tr>
                     <td>{{ emenda.numero }}</td>
                     <td>{{ emenda.codigo }}</td>
+                    <td>{{ emenda.exercicio.ano }}</td>
+                    <td>{{ emenda.municipio }}</td>
                     <td>{{ emenda.autor_nome }}</td>
                     <td>{{ emenda.partido.sigla }}</td>
+                    <td>
+                        {% if emenda.documentacao_entidade or emenda.autor_bancada.ata or emenda.anexos.exists %}
+                            <a href="{% url 'transparencia:emenda_pdf' emenda.pk %}" target="_blank">PDF</a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ emenda.get_modalidade_display }}</td>
+                    <td>{{ emenda.tipo_transferencia }}</td>
+                    <td>{{ emenda.vinculacao_orcamentaria }}</td>
+                    <td>{{ emenda.funcao_governo.nome }}</td>
+                    <td>{{ emenda.subfuncao_governo.nome }}</td>
+                    <td>{{ emenda.programa_ppa.nome }}</td>
+                    <td><span class="d-inline-block text-truncate" style="max-width: 250px;">{{ emenda.programa_ppa.objetivos }}</span></td>
+                    <td>{{ emenda.acao_orcamentaria }}</td>
+                    <td>{{ emenda.objeto_despesa }}</td>
                     <td>{{ emenda.destino_nome }}</td>
-                    <td>{{ emenda.objeto_despesa|truncatechars:80 }}</td>
-                    <td>{{ emenda.valor_previsto|floatformat:2 }}</td>
-                    <td><a href="{% url 'transparencia:emenda_pdf' emenda.pk %}" target="_blank">PDF</a></td>
+                    <td>{{ emenda.get_categoria_economica_display }}</td>
+                    <td class="text-end">{{ emenda.valor_previsto|floatformat:2 }}</td>
+                    <td class="text-end">{{ emenda.valor_custeio|floatformat:2 }}</td>
+                    <td class="text-end">{{ emenda.valor_investimento|floatformat:2 }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="8" class="text-center text-muted">Nenhum resultado.</td></tr>
+                <tr><td colspan="{{ colunas|length }}" class="text-center text-muted">Nenhum resultado.</td></tr>
             {% endfor %}
             </tbody>
         </table>
