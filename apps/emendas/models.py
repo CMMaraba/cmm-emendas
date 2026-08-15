@@ -319,8 +319,14 @@ class Emenda(models.Model):
             self.save()
 
     def devolver(self, usuario, motivo):
-        if self.situacao not in (self.Situacao.ENVIADA, self.Situacao.EM_CONFERENCIA):
-            raise ValidationError("Só é possível devolver emendas enviadas ou em conferência.")
+        # Inclui PUBLICADA de propósito: o Vereador pode querer alterar algo depois de
+        # publicada, ou a Prefeitura pode recusar e mandar corrigir. Devolver tira a
+        # emenda da tabela pública imediatamente (só PUBLICADA aparece lá) e libera de
+        # volta o saldo da faixa (DEVOLVIDA não entra em Faixa.saldo_de()). O código já
+        # atribuído (self.codigo) é preservado — ao publicar de novo, _atribuir_numero_
+        # codigo() não roda outra vez porque o código já existe.
+        if self.situacao not in (self.Situacao.ENVIADA, self.Situacao.EM_CONFERENCIA, self.Situacao.PUBLICADA):
+            raise ValidationError("Só é possível devolver emendas enviadas, em conferência ou publicadas.")
         if not motivo:
             raise ValidationError("Informe o motivo da devolução.")
         self.situacao = self.Situacao.DEVOLVIDA

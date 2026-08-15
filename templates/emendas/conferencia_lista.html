@@ -28,4 +28,32 @@
     </tbody>
 </table>
 </div>
+
+<h2 class="h5 mt-5">Emendas publicadas</h2>
+<p class="text-muted small">
+    Para alterar algo numa emenda já publicada (a pedido do vereador ou por recusa da Prefeitura),
+    abra e use "Devolver ao gabinete/bancada" — ela sai da tabela pública e volta a ser editável,
+    mantendo o mesmo código quando publicada de novo.
+</p>
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr><th>Código</th><th>Autor</th><th>Faixa</th><th>Valor</th><th>Publicada em</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for emenda in emendas_publicadas %}
+        <tr>
+            <td>{{ emenda.codigo }}</td>
+            <td>{{ emenda.autor_nome }} ({{ emenda.partido.sigla }})</td>
+            <td>{{ emenda.faixa.nome }}</td>
+            <td>R$ {{ emenda.valor_previsto|floatformat:2 }}</td>
+            <td>{{ emenda.publicada_em|date:"d/m/Y H:i" }}</td>
+            <td><a class="btn btn-sm btn-outline-marrom" href="{% url 'emendas:conferencia_detalhe' emenda.pk %}">Ver / devolver</a></td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="text-center text-muted">Nenhuma emenda publicada ainda.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
 {% endblock %}

@@ -94,6 +94,27 @@
 {% block extra_scripts %}
 <script>
 (function () {
+    // Máscara de moeda brasileira: trata o conteúdo do campo como dígitos-de-centavos,
+    // então reformata com separador de milhar "." e decimal ",", sempre com 2 casas.
+    function aplicarMascaraMoeda(input) {
+        function formatar() {
+            let digitos = input.value.replace(/\D/g, '');
+            if (!digitos) digitos = '0';
+            digitos = digitos.replace(/^0+(?=\d)/, '');
+            while (digitos.length < 3) digitos = '0' + digitos;
+            const centavos = digitos.slice(-2);
+            const inteiro = digitos.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            input.value = inteiro + ',' + centavos;
+        }
+        input.addEventListener('input', formatar);
+        formatar();
+    }
+
+    function paraNumero(valorTexto) {
+        if (!valorTexto) return 0;
+        return parseFloat(valorTexto.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
     const cartao = document.getElementById('cartao-saldo-form');
     const teto = parseFloat(cartao.dataset.teto || '0');
     const usadoSemEsta = parseFloat(cartao.dataset.usadoSemEsta || '0');
@@ -103,8 +124,8 @@
     const spanSaldo = document.getElementById('saldo-projetado');
 
     function atualizar() {
-        const c = parseFloat(custeio.value || '0') || 0;
-        const i = parseFloat(investimento.value || '0') || 0;
+        const c = paraNumero(custeio.value);
+        const i = paraNumero(investimento.value);
         const saldo = teto - (usadoSemEsta + c + i);
         const fmt = saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         if (saldo < 0) {
@@ -116,6 +137,8 @@
         }
     }
     if (custeio && investimento) {
+        aplicarMascaraMoeda(custeio);
+        aplicarMascaraMoeda(investimento);
         custeio.addEventListener('input', atualizar);
         investimento.addEventListener('input', atualizar);
         atualizar();

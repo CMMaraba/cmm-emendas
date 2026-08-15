@@ -2,7 +2,15 @@
 {% block title %}Conferência — {{ emenda.codigo|default:"emenda ainda não numerada" }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-1">Conferência da emenda {{ emenda.codigo|default:"(sem número — será gerado ao publicar)" }}</h1>
-<p class="text-muted">{{ emenda.autor_nome }} ({{ emenda.partido.sigla }}) — {{ emenda.faixa.nome }}</p>
+<p class="text-muted">
+    {{ emenda.autor_nome }} ({{ emenda.partido.sigla }}) — {{ emenda.faixa.nome }}
+    <span class="badge
+        {% if emenda.situacao == 'publicada' %}bg-success
+        {% elif emenda.situacao == 'devolvida' %}bg-danger
+        {% else %}bg-warning text-dark{% endif %}">
+        {{ emenda.get_situacao_display }}
+    </span>
+</p>
 
 <div class="card mb-4">
     <div class="card-header">Mérito enviado pelo gabinete/bancada</div>
@@ -35,6 +43,14 @@
 </form>
 {% endif %}
 
+{% if emenda.situacao == 'publicada' %}
+<div class="alert alert-success">
+    Esta emenda já está publicada{% if emenda.publicada_em %} desde {{ emenda.publicada_em|date:"d/m/Y H:i" }}{% endif %}.
+    Para alterar qualquer detalhe (destinação, valor etc.), devolva-a ao gabinete/bancada abaixo — ela sai
+    imediatamente da tabela pública e volta a poder ser editada; ao ser reenviada e publicada de novo, mantém
+    o mesmo código <strong>{{ emenda.codigo }}</strong>.
+</div>
+{% else %}
 <div class="card mb-4">
     <div class="card-header">Classificação orçamentária (setor técnico)</div>
     <div class="card-body">
@@ -70,12 +86,12 @@
                     <div class="text-danger small">{{ form.programa_ppa.errors }}</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Função / Subfunção calculadas</label>
-                    <div class="form-control-plaintext">
+                    <label class="form-label">Função / Subfunção</label>
+                    <div class="form-control-plaintext" id="resultado-vinculacao">
                         {% if emenda.funcao_governo %}
-                            {{ emenda.funcao_governo }} / {{ emenda.subfuncao_governo }}
+                            <span class="text-success">{{ emenda.funcao_governo }} / {{ emenda.subfuncao_governo }}</span>
                         {% else %}
-                            <span class="text-muted">Ainda não calculadas — informe a Vinculação Orçamentária e salve.</span>
+                            <span class="text-muted">Digite a Vinculação Orçamentária para conferir.</span>
                         {% endif %}
                     </div>
                 </div>
@@ -84,6 +100,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <div class="card border-danger">
     <div class="card-header text-danger">Devolver para ajuste</div>
@@ -98,4 +115,39 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    const campo = document.getElementById('id_vinculacao_orcamentaria');
+    const resultado = document.getElementById('resultado-vinculacao');
+    if (!campo || !resultado) return;
+
+    let ultimoTimer = null;
+    campo.addEventListener('input', function () {
+        clearTimeout(ultimoTimer);
+        const codigo = campo.value.trim();
+        if (!codigo) {
+            resultado.innerHTML = '<span class="text-muted">Digite a Vinculação Orçamentária para conferir.</span>';
+            return;
+        }
+        ultimoTimer = setTimeout(function () {
+            const url = '{% url "emendas:validar_vinculacao" %}?codigo=' + encodeURIComponent(codigo);
+            fetch(url)
+                .then(function (r) { return r.json(); })
+                .then(function (dados) {
+                    if (dados.encontrado) {
+                        resultado.innerHTML = '<span class="text-success">' + dados.funcao + ' / ' + dados.subfuncao + '</span>';
+                    } else {
+                        resultado.innerHTML = '<span class="text-danger">Nenhuma função/subfunção encontrada para este código — confira o 3º e o 4º grupo de números.</span>';
+                    }
+                })
+                .catch(function () {
+                    resultado.innerHTML = '<span class="text-muted">Não foi possível conferir agora.</span>';
+                });
+        }, 400);
+    });
+})();
+</script>
 {% endblock %}

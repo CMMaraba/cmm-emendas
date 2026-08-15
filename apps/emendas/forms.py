@@ -59,9 +59,13 @@ class EmendaForm(forms.ModelForm):
         widgets = {
             "acao_orcamentaria": forms.Textarea(attrs={"rows": 3}),
             "objeto_despesa": forms.Textarea(attrs={"rows": 3}),
-            "valor_custeio": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
-            "valor_investimento": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+            "valor_custeio": forms.TextInput(attrs={"inputmode": "decimal", "data-mask": "moeda"}),
+            "valor_investimento": forms.TextInput(attrs={"inputmode": "decimal", "data-mask": "moeda"}),
         }
+        # Faz o Django aceitar/exibir "10.000,00" (formato brasileiro) nesses dois
+        # campos em vez de "10000.00" — o JS de máscara em emenda_form.html cuida da
+        # formatação visual enquanto o vereador digita.
+        localized_fields = ["valor_custeio", "valor_investimento"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

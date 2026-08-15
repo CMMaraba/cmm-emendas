@@ -1,10 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from apps.orcamento.models import Exercicio, Faixa
+from apps.orcamento.models import Exercicio, Faixa, resolver_classificacao_funcional
 from apps.parlamento.models import Bancada, Perfil, Vereador
 
 from .forms import DevolucaoForm, EmendaConferenciaForm, EmendaForm
@@ -158,10 +159,31 @@ def emenda_enviar(request, pk):
 
 @tecnico_obrigatorio
 def conferencia_lista(request):
-    emendas = Emenda.objects.filter(
+    base = Emenda.objects.select_related("faixa", "autor_vereador", "autor_bancada", "autor_bancada__partido")
+    emendas = base.filter(
         situacao__in=[Emenda.Situacao.ENVIADA, Emenda.Situacao.EM_CONFERENCIA]
-    ).select_related("faixa", "autor_vereador", "autor_bancada", "autor_bancada__partido").order_by("enviada_em")
-    return render(request, "emendas/conferencia_lista.html", {"emendas": emendas})
+    ).order_by("enviada_em")
+    emendas_publicadas = base.filter(situacao=Emenda.Situacao.PUBLICADA).order_by("-publicada_em")
+    return render(
+        request,
+        "emendas/conferencia_lista.html",
+        {"emendas": emendas, "emendas_publicadas": emendas_publicadas},
+    )
+
+
+@tecnico_obrigatorio
+def validar_vinculacao(request):
+    """Endpoint AJAX: confere ao vivo se a Vinculação Orçamentária digitada resolve
+    para uma Função/Subfunção de Governo válida, sem precisar salvar o formulário."""
+    codigo = request.GET.get("codigo", "")
+    funcao, subfuncao = resolver_classificacao_funcional(codigo)
+    if funcao and subfuncao:
+        return JsonResponse({
+            "encontrado": True,
+            "funcao": funcao.nome,
+            "subfuncao": subfuncao.nome,
+        })
+    return JsonResponse({"encontrado": False})
 
 
 @tecnico_obrigatorio

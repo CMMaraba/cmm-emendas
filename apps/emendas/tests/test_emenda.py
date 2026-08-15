@@ -158,6 +158,37 @@ class TestWorkflow:
         assert emenda.situacao == Emenda.Situacao.DEVOLVIDA
         assert emenda.pode_editar()
 
+    def test_devolucao_de_emenda_publicada_libera_edicao_e_preserva_codigo(
+        self, exercicio, faixa_individual_155, vereador_a, funcao_governo, subfuncao_governo,
+        unidade_gestora_direta, orgao_executor, usuario_gabinete_a, usuario_tecnico,
+    ):
+        # O Vereador pode querer alterar algo depois de publicada, ou a Prefeitura pode
+        # recusar e mandar corrigir — devolver precisa funcionar mesmo já publicada,
+        # tirando a emenda da tabela pública e devolvendo o saldo, sem gerar um código
+        # novo quando republicada.
+        emenda = _criar_emenda(
+            exercicio, faixa_individual_155, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
+            {"autor_vereador": vereador_a}, orgao_executor=orgao_executor, valor_investimento=Decimal("1000"),
+        )
+        emenda.vinculacao_orcamentaria = "13 01. 08 244 5003 8.500"
+        emenda.tipo_transferencia = TipoTransferencia.FINALIDADE_DEFINIDA
+        emenda.enviar()
+        emenda.publicar(usuario_tecnico)
+        assert emenda.situacao == Emenda.Situacao.PUBLICADA
+        codigo_original = emenda.codigo
+
+        emenda.devolver(usuario_tecnico, "Prefeitura recusou o destino da emenda.")
+        assert emenda.situacao == Emenda.Situacao.DEVOLVIDA
+        assert emenda.pode_editar()
+        saldo = faixa_individual_155.saldo_de(vereador_a)
+        assert saldo["usado"] == Decimal("0")  # devolvida não conta mais no saldo
+
+        emenda.objeto_despesa = "Objeto corrigido conforme solicitado."
+        emenda.enviar()
+        emenda.publicar(usuario_tecnico)
+        assert emenda.situacao == Emenda.Situacao.PUBLICADA
+        assert emenda.codigo == codigo_original
+
 
 @pytest.mark.django_db
 class TestCodigoUnico:
