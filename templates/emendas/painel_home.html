@@ -52,7 +52,7 @@
     <tbody>
     {% for emenda in emendas %}
         <tr>
-            <td>{{ emenda.codigo }}</td>
+            <td>{{ emenda.codigo|default:"(a numerar na publicação)" }}</td>
             <td>{{ emenda.faixa.nome }}</td>
             <td>
                 <span class="badge

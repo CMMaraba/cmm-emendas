@@ -15,6 +15,7 @@ from apps.orcamento.models import (
     ProgramaPPA,
     SubfuncaoGoverno,
     UnidadeGestora,
+    resolver_classificacao_funcional,
 )
 from apps.parlamento.models import Bancada, Partido, Vereador
 
@@ -29,6 +30,19 @@ class CategoriaEconomica(models.TextChoices):
     CUSTEIO = "custeio", "Custeio"
 
 
+class TipoTransferencia(models.TextChoices):
+    FINALIDADE_DEFINIDA = "Finalidade Definida", "Finalidade Definida"
+    TRANSFERENCIA_ESPECIAL = "Transferência Especial", "Transferência Especial"
+
+
+# Sigla usada no código da emenda (ex.: "FD" em "2026.EPIMI.FD.001") — não é gravada no
+# banco, só usada para montar o código no momento da publicação.
+SIGLA_TIPO_TRANSFERENCIA = {
+    TipoTransferencia.FINALIDADE_DEFINIDA: "FD",
+    TipoTransferencia.TRANSFERENCIA_ESPECIAL: "TE",
+}
+
+
 class Emenda(models.Model):
     class Situacao(models.TextChoices):
         RASCUNHO = "rascunho", "Rascunho"
@@ -40,8 +54,14 @@ class Emenda(models.Model):
     # --- Automático ---
     exercicio = models.ForeignKey(Exercicio, verbose_name="Exercício", on_delete=models.PROTECT, related_name="emendas")
     faixa = models.ForeignKey(Faixa, verbose_name="Faixa", on_delete=models.PROTECT, related_name="emendas")
-    numero = models.PositiveIntegerField("Nº", editable=False)
-    codigo = models.CharField("Código", max_length=50, editable=False)
+    numero = models.PositiveIntegerField(
+        "Nº", editable=False, null=True, blank=True,
+        help_text="Atribuído pelo sistema só na publicação, depois que o setor técnico define o Tipo de Transferência.",
+    )
+    codigo = models.CharField(
+        "Código", max_length=50, editable=False, null=True, blank=True, default=None,
+        help_text="Atribuído pelo sistema só na publicação, depois que o setor técnico define o Tipo de Transferência.",
+    )
     codigo_legado = models.CharField("Código no sistema legado", max_length=50, blank=True, editable=False)
     municipio = models.CharField("Município", max_length=100, editable=False)
     autor_vereador = models.ForeignKey(
@@ -60,7 +80,10 @@ class Emenda(models.Model):
     )
     partido = models.ForeignKey(Partido, verbose_name="Partido Político", on_delete=models.PROTECT, related_name="emendas", editable=False)
     modalidade = models.CharField("Modalidade", max_length=12, choices=Faixa.Modalidade.choices, editable=False)
-    tipo_transferencia = models.CharField("Tipo de Transferência", max_length=100, editable=False)
+    tipo_transferencia = models.CharField(
+        "Tipo de Transferência", max_length=100, choices=TipoTransferencia.choices, blank=True,
+        help_text="Definido pelo setor técnico na conferência — usado para gerar o número/código da emenda na publicação.",
+    )
 
     # --- Gabinete / bancada (mérito) ---
     funcao_governo = models.ForeignKey(
@@ -144,7 +167,10 @@ class Emenda(models.Model):
         verbose_name = "Emenda"
         verbose_name_plural = "Emendas"
         ordering = ["exercicio", "faixa", "numero"]
-        unique_together = [("exercicio", "codigo"), ("exercicio", "faixa", "numero")]
+        unique_together = [
+            ("exercicio", "codigo"),
+            ("exercicio", "modalidade", "tipo_transferencia", "numero"),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=(
@@ -212,24 +238,33 @@ class Emenda(models.Model):
         if self.pk is None:
             self.municipio = self.municipio or self.exercicio.municipio
             self.modalidade = self.faixa.modalidade
-            self.tipo_transferencia = self.faixa.tipo_transferencia
             if self.autor_vereador_id:
                 self.partido = self.autor_vereador.partido
             elif self.autor_bancada_id:
                 self.partido = self.autor_bancada.partido
-            with transaction.atomic():
-                self._atribuir_numero_codigo()
-                super().save(*args, **kwargs)
-        else:
-            super().save(*args, **kwargs)
+        # numero/codigo NÃO são atribuídos aqui: só na publicação, depois que o setor
+        # técnico define o Tipo de Transferência (ver publicar() e
+        # _atribuir_numero_codigo()) — o número não pode ser calculado/sugerido
+        # automaticamente para o vereador, é uma decisão do setor técnico.
+        super().save(*args, **kwargs)
 
     def _atribuir_numero_codigo(self):
-        qs = Emenda.objects.filter(exercicio_id=self.exercicio_id, faixa_id=self.faixa_id)
+        """Chamado só por publicar(): monta "{ano}.EPIM{I|B}.{FD|TE}.{nº:03d}" pegando o
+        próximo número disponível entre TODAS as faixas da mesma modalidade e do mesmo
+        Tipo de Transferência no exercício — não por faixa/percentual, para não repetir
+        o bug do legado de códigos duplicados entre faixas de percentuais diferentes."""
+        sigla_modalidade = "I" if self.modalidade == Faixa.Modalidade.INDIVIDUAL else "B"
+        sigla_tipo = SIGLA_TIPO_TRANSFERENCIA.get(self.tipo_transferencia, "")
+        qs = Emenda.objects.filter(
+            exercicio_id=self.exercicio_id,
+            modalidade=self.modalidade,
+            tipo_transferencia=self.tipo_transferencia,
+        )
         if connection.vendor == "postgresql":
             qs = qs.select_for_update()
         ultimo = qs.aggregate(Max("numero"))["numero__max"] or 0
         self.numero = ultimo + 1
-        self.codigo = f"{self.exercicio.ano}.{self.faixa.sigla_codigo}.{self.faixa.rotulo_transferencia}.{self.numero:03d}"
+        self.codigo = f"{self.exercicio.ano}.EPIM{sigla_modalidade}.{sigla_tipo}.{self.numero:03d}"
 
     # --- Workflow ---
     def pode_editar(self):
@@ -261,10 +296,23 @@ class Emenda(models.Model):
             raise ValidationError("Só é possível publicar emendas enviadas ou em conferência.")
         if not self.vinculacao_orcamentaria:
             raise ValidationError("Informe a vinculação orçamentária antes de publicar.")
-        self.situacao = self.Situacao.PUBLICADA
-        self.conferida_por = usuario
-        self.publicada_em = timezone.now()
-        self.save()
+        if not self.tipo_transferencia:
+            raise ValidationError("Selecione o Tipo de Transferência antes de publicar.")
+        funcao, subfuncao = resolver_classificacao_funcional(self.vinculacao_orcamentaria)
+        if not funcao or not subfuncao:
+            raise ValidationError(
+                "Não foi possível identificar a função/subfunção de governo a partir da "
+                "Vinculação Orçamentária informada. Confira o código digitado."
+            )
+        with transaction.atomic():
+            self.funcao_governo = funcao
+            self.subfuncao_governo = subfuncao
+            if not self.codigo:
+                self._atribuir_numero_codigo()
+            self.situacao = self.Situacao.PUBLICADA
+            self.conferida_por = usuario
+            self.publicada_em = timezone.now()
+            self.save()
 
     def devolver(self, usuario, motivo):
         if self.situacao not in (self.Situacao.ENVIADA, self.Situacao.EM_CONFERENCIA):

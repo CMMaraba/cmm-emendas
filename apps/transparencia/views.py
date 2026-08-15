@@ -184,5 +184,5 @@ def emenda_pdf(request, pk):
         raise Http404("Emenda não publicada.")
     buffer = gerar_pdf_emenda(emenda)
     response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{emenda.codigo}.pdf"'
+    response["Content-Disposition"] = f'inline; filename="{emenda.codigo or emenda.pk}.pdf"'
     return response

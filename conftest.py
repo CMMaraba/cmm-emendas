@@ -74,7 +74,14 @@ def bancada_mdb(exercicio, partido_mdb, vereador_a):
 
 @pytest.fixture
 def funcao_governo(db):
-    return FuncaoGoverno.objects.create(nome="Assistência Social", ordem=1)
+    return FuncaoGoverno.objects.create(nome="Assistência Social", ordem=1, codigo="08")
+
+
+@pytest.fixture
+def subfuncao_governo(funcao_governo):
+    from apps.orcamento.models import SubfuncaoGoverno
+
+    return SubfuncaoGoverno.objects.create(funcao=funcao_governo, nome="Assistência Comunitária", codigo="244")
 
 
 @pytest.fixture

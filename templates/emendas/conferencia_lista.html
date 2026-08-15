@@ -10,7 +10,7 @@
     <tbody>
     {% for emenda in emendas %}
         <tr>
-            <td>{{ emenda.codigo }}</td>
+            <td>{{ emenda.codigo|default:"(a numerar na publicação)" }}</td>
             <td>{{ emenda.autor_nome }} ({{ emenda.partido.sigla }})</td>
             <td>{{ emenda.faixa.nome }}</td>
             <td>R$ {{ emenda.valor_previsto|floatformat:2 }}</td>

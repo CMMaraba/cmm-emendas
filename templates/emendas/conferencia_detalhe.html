@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Conferência — {{ emenda.codigo }}{% endblock %}
+{% block title %}Conferência — {{ emenda.codigo|default:"emenda ainda não numerada" }}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-1">Conferência da emenda {{ emenda.codigo }}</h1>
+<h1 class="h3 mb-1">Conferência da emenda {{ emenda.codigo|default:"(sem número — será gerado ao publicar)" }}</h1>
 <p class="text-muted">{{ emenda.autor_nome }} ({{ emenda.partido.sigla }}) — {{ emenda.faixa.nome }}</p>
 
 <div class="card mb-4">
@@ -42,6 +42,12 @@
             {% csrf_token %}
             <input type="hidden" name="acao" value="publicar">
             <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.tipo_transferencia.label }}</label>
+                    {{ form.tipo_transferencia }}
+                    <div class="form-text">{{ form.tipo_transferencia.help_text }}</div>
+                    <div class="text-danger small">{{ form.tipo_transferencia.errors }}</div>
+                </div>
                 <div class="col-md-6">
                     <label class="form-label">{{ form.vinculacao_orcamentaria.label }}</label>
                     {{ form.vinculacao_orcamentaria }}

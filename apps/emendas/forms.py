@@ -148,7 +148,7 @@ class EmendaConferenciaForm(forms.ModelForm):
 
     class Meta:
         model = Emenda
-        fields = ["vinculacao_orcamentaria", "programa_ppa", "data_reserva"]
+        fields = ["tipo_transferencia", "vinculacao_orcamentaria", "programa_ppa", "data_reserva"]
         widgets = {
             "data_reserva": forms.DateInput(attrs={"type": "date"}),
         }
@@ -159,6 +159,12 @@ class EmendaConferenciaForm(forms.ModelForm):
         if emenda and emenda.exercicio_id:
             self.fields["programa_ppa"].queryset = ProgramaPPA.objects.filter(exercicio=emenda.exercicio)
         self.fields["programa_ppa"].required = False
+        self.fields["tipo_transferencia"].required = True
+        self.fields["tipo_transferencia"].help_text = (
+            "Define como o número/código da emenda será gerado ao publicar (ex.: "
+            "2026.EPIMI.FD.001 para Finalidade Definida, 2026.EPIMI.TE.001 para "
+            "Transferência Especial)."
+        )
 
     def clean(self):
         cleaned = super().clean()

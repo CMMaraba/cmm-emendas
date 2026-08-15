@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from django.core.exceptions import ValidationError
 
-from apps.emendas.models import CategoriaEconomica, Emenda
+from apps.emendas.models import CategoriaEconomica, Emenda, TipoTransferencia
 
 
 def _criar_emenda(exercicio, faixa, funcao_governo, unidade_gestora, criada_por, autor_kwargs,
@@ -118,7 +118,7 @@ class TestDocumentacaoObrigatoria:
 @pytest.mark.django_db
 class TestWorkflow:
     def test_fluxo_completo_ate_publicacao(
-        self, exercicio, faixa_individual_155, vereador_a, funcao_governo, unidade_gestora_direta,
+        self, exercicio, faixa_individual_155, vereador_a, funcao_governo, subfuncao_governo, unidade_gestora_direta,
         orgao_executor, usuario_gabinete_a, usuario_tecnico,
     ):
         emenda = _criar_emenda(
@@ -133,10 +133,17 @@ class TestWorkflow:
             emenda.publicar(usuario_tecnico)  # falta vinculacao_orcamentaria
 
         emenda.vinculacao_orcamentaria = "13 01. 08 244 5003 8.500"
+        with pytest.raises(ValidationError):
+            emenda.publicar(usuario_tecnico)  # falta tipo_transferencia
+
+        emenda.tipo_transferencia = TipoTransferencia.FINALIDADE_DEFINIDA
         emenda.publicar(usuario_tecnico)
         assert emenda.situacao == Emenda.Situacao.PUBLICADA
         assert emenda.publicada_em is not None
         assert emenda.conferida_por == usuario_tecnico
+        assert emenda.codigo == "2026.EPIMI.FD.001"
+        assert emenda.funcao_governo.nome == "Assistência Social"
+        assert emenda.subfuncao_governo.nome == "Assistência Comunitária"
 
     def test_devolucao_permite_reedicao(
         self, exercicio, faixa_individual_155, vereador_a, funcao_governo, unidade_gestora_direta,
@@ -154,29 +161,46 @@ class TestWorkflow:
 
 @pytest.mark.django_db
 class TestCodigoUnico:
-    def test_numeros_sequenciais_por_faixa_sem_colisao(
-        self, exercicio, faixa_individual_155, faixa_individual_200, vereador_a, funcao_governo,
-        unidade_gestora_direta, orgao_executor, usuario_gabinete_a,
+    def test_numero_e_codigo_ficam_em_branco_ate_a_publicacao(
+        self, exercicio, faixa_individual_155, vereador_a, funcao_governo, unidade_gestora_direta,
+        orgao_executor, usuario_gabinete_a,
     ):
+        emenda = _criar_emenda(
+            exercicio, faixa_individual_155, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
+            {"autor_vereador": vereador_a}, orgao_executor=orgao_executor,
+        )
+        assert emenda.numero is None
+        assert emenda.codigo is None
+
+    def test_numeracao_e_compartilhada_entre_faixas_da_mesma_modalidade_e_tipo(
+        self, exercicio, faixa_individual_155, faixa_individual_200, vereador_a, vereador_b, funcao_governo,
+        subfuncao_governo, unidade_gestora_direta, orgao_executor, usuario_gabinete_a, usuario_tecnico,
+    ):
+        # No sistema legado, "2026.EPIMI.FD.001" existia em faixas de percentuais
+        # diferentes porque cada uma tinha seu próprio contador reiniciando do zero — o
+        # bug que motivou o novo sistema. Aqui o contador é único por modalidade + Tipo
+        # de Transferência (definido pelo técnico), então duas emendas de faixas
+        # diferentes mas do mesmo tipo recebem números sequenciais sem colidir.
         e1 = _criar_emenda(
             exercicio, faixa_individual_155, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
             {"autor_vereador": vereador_a}, orgao_executor=orgao_executor,
         )
         e2 = _criar_emenda(
             exercicio, faixa_individual_200, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
-            {"autor_vereador": vereador_a}, orgao_executor=orgao_executor,
+            {"autor_vereador": vereador_b}, orgao_executor=orgao_executor,
         )
-        # No sistema legado, "2026.EPIMI.FD.001" existia em AMBAS as faixas — o bug que
-        # motivou o novo sistema. Aqui os códigos devem ser distintos por construção.
-        assert e1.numero == 1
-        assert e2.numero == 1
-        assert e1.codigo != e2.codigo
-        assert e1.codigo == "2026.EPIMI155.FD.001"
-        assert e2.codigo == "2026.EPIMI200.FD.001"
+        for e in (e1, e2):
+            e.vinculacao_orcamentaria = "13 01. 08 244 5003 8.500"
+            e.tipo_transferencia = TipoTransferencia.FINALIDADE_DEFINIDA
+            e.enviar()
+            e.publicar(usuario_tecnico)
 
-    def test_segunda_emenda_na_mesma_faixa_recebe_proximo_numero(
-        self, exercicio, faixa_individual_155, vereador_a, funcao_governo, unidade_gestora_direta,
-        orgao_executor, usuario_gabinete_a,
+        assert e1.codigo == "2026.EPIMI.FD.001"
+        assert e2.codigo == "2026.EPIMI.FD.002"
+
+    def test_tipos_de_transferencia_diferentes_tem_contadores_independentes(
+        self, exercicio, faixa_individual_155, vereador_a, vereador_b, funcao_governo,
+        subfuncao_governo, unidade_gestora_direta, orgao_executor, usuario_gabinete_a, usuario_tecnico,
     ):
         e1 = _criar_emenda(
             exercicio, faixa_individual_155, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
@@ -184,9 +208,32 @@ class TestCodigoUnico:
         )
         e2 = _criar_emenda(
             exercicio, faixa_individual_155, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
+            {"autor_vereador": vereador_b}, orgao_executor=orgao_executor,
+        )
+        e1.vinculacao_orcamentaria = "13 01. 08 244 5003 8.500"
+        e2.vinculacao_orcamentaria = "13 01. 08 244 5003 8.500"
+        e1.tipo_transferencia = TipoTransferencia.FINALIDADE_DEFINIDA
+        e2.tipo_transferencia = TipoTransferencia.TRANSFERENCIA_ESPECIAL
+        e1.enviar()
+        e2.enviar()
+        e1.publicar(usuario_tecnico)
+        e2.publicar(usuario_tecnico)
+
+        assert e1.codigo == "2026.EPIMI.FD.001"
+        assert e2.codigo == "2026.EPIMI.TE.001"
+
+    def test_publicar_exige_tipo_transferencia(
+        self, exercicio, faixa_individual_155, vereador_a, funcao_governo, unidade_gestora_direta,
+        orgao_executor, usuario_gabinete_a, usuario_tecnico,
+    ):
+        emenda = _criar_emenda(
+            exercicio, faixa_individual_155, funcao_governo, unidade_gestora_direta, usuario_gabinete_a,
             {"autor_vereador": vereador_a}, orgao_executor=orgao_executor,
         )
-        assert e2.numero == e1.numero + 1
+        emenda.vinculacao_orcamentaria = "13 01. 08 244 5003 8.500"
+        emenda.enviar()
+        with pytest.raises(ValidationError):
+            emenda.publicar(usuario_tecnico)
 
 
 @pytest.mark.django_db

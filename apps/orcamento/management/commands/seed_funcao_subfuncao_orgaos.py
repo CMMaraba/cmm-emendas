@@ -105,6 +105,20 @@ FUNCOES_SUBFUNCOES = {
     ],
 }
 
+# Nomes que já existiam sem "Municipal" (padronização pedida em 15/08/2026) e a
+# Superintendência que ganhou a sigla no nome — mapeamento aplicado antes do
+# get_or_create abaixo, para RENOMEAR o registro já existente em vez de duplicá-lo.
+RENOMEIA_ORGAOS = {
+    "Secretaria de Assistência Social, Proteção e Assuntos Comunitários":
+        "Secretaria Municipal de Assistência Social, Proteção e Assuntos Comunitários",
+    "Secretaria de Comunicação Social": "Secretaria Municipal de Comunicação Social",
+    "Secretaria de Mineração, Indústria, Comércio, Ciência e Tecnologia":
+        "Secretaria Municipal de Mineração, Indústria, Comércio, Ciência e Tecnologia",
+    "Secretaria de Planejamento": "Secretaria Municipal de Planejamento",
+    "Superintendência de Desenvolvimento Urbano de Marabá":
+        "Superintendência de Desenvolvimento Urbano de Marabá (SDU)",
+}
+
 # (nome do órgão, sigla, nome da UnidadeGestora a que pertence)
 ORGAOS_MARABA = [
     ("Gabinete do Prefeito", "", "Prefeitura Administração Direta"),
@@ -112,18 +126,19 @@ ORGAOS_MARABA = [
     ("Controladoria Geral do Município", "CGM", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Administração", "SEMAD", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Agricultura", "SEAGRI", "Prefeitura Administração Direta"),
-    ("Secretaria de Assistência Social, Proteção e Assuntos Comunitários", "SEASPAC", "Prefeitura Administração Direta"),
-    ("Secretaria de Comunicação Social", "SECOM", "Prefeitura Administração Direta"),
+    ("Secretaria Municipal de Assistência Social, Proteção e Assuntos Comunitários", "SEASPAC", "Prefeitura Administração Direta"),
+    ("Secretaria Municipal de Comunicação Social", "SECOM", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Cultura", "SECULT", "Prefeitura Administração Direta"),
+    ("Departamento Municipal de Trânsito Urbano (DMTU)", "DMTU", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Educação", "SEMED", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Esporte e Lazer", "SEMEL", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Finanças", "SEFIN", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Gestão Fazendária", "SEGFAZ", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Meio Ambiente", "SEMMA", "Prefeitura Administração Direta"),
-    ("Secretaria de Mineração, Indústria, Comércio, Ciência e Tecnologia", "SICOM", "Prefeitura Administração Direta"),
+    ("Secretaria Municipal de Mineração, Indústria, Comércio, Ciência e Tecnologia", "SICOM", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Saúde", "SMS", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Segurança Institucional", "SMSI", "Prefeitura Administração Direta"),
-    ("Secretaria de Planejamento", "SEPLAN", "Prefeitura Administração Direta"),
+    ("Secretaria Municipal de Planejamento", "SEPLAN", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Turismo", "SEMTUR", "Prefeitura Administração Direta"),
     ("Secretaria Municipal de Viação e Obras Públicas", "SEVOP", "Prefeitura Administração Direta"),
     ("Fundação Casa da Cultura", "FCCM", "Prefeitura Administração Indireta (Fundação Casa da Cultura)"),
@@ -134,7 +149,7 @@ ORGAOS_MARABA = [
     ),
     ("Serviço de Saneamento Ambiental de Marabá", "SSAM", "Prefeitura Administração Indireta (SSAM)"),
     (
-        "Superintendência de Desenvolvimento Urbano de Marabá",
+        "Superintendência de Desenvolvimento Urbano de Marabá (SDU)",
         "SDU",
         "Prefeitura Administração Indireta (SDU)",
     ),
@@ -168,6 +183,10 @@ class Command(BaseCommand):
                     subfuncao.save(update_fields=["codigo"])
                     subfuncoes_atualizadas += 1
 
+        orgaos_renomeados = 0
+        for nome_antigo, nome_novo in RENOMEIA_ORGAOS.items():
+            orgaos_renomeados += OrgaoExecutor.objects.filter(nome=nome_antigo).update(nome=nome_novo)
+
         orgaos_criados = 0
         for nome, sigla, nome_unidade in ORGAOS_MARABA:
             unidade = UnidadeGestora.objects.filter(nome=nome_unidade).first()
@@ -185,5 +204,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Funções: {funcoes_criadas} criadas, {funcoes_atualizadas} com código atualizado. "
             f"Subfunções: {subfuncoes_criadas} criadas, {subfuncoes_atualizadas} com código atualizado. "
-            f"Órgãos executores: {orgaos_criados} criados."
+            f"Órgãos executores: {orgaos_criados} criados, {orgaos_renomeados} renomeados."
         ))
