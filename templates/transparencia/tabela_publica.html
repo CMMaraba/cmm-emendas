@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block title %}Tabela pública{% endblock %}
 {% block container_class %}container-fluid{% endblock %}
 {% block content %}
@@ -9,7 +10,7 @@
     <label for="ano" class="form-label mb-0 small text-muted">Exercício</label>
     <select name="ano" id="ano" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
         {% for ex in exercicios %}
-            <option value="{{ ex.ano }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>{{ ex.ano }}</option>
+            <option value="{{ ex.ano|unlocalize }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>{{ ex.ano|unlocalize }}</option>
         {% endfor %}
     </select>
 </form>

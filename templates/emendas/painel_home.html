@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block title %}Meu painel{% endblock %}
 {% block content %}
 <h1 class="h3 mb-1">Minhas emendas</h1>
@@ -8,8 +9,8 @@
     <label for="ano" class="form-label mb-0 small text-muted">Exercício</label>
     <select name="ano" id="ano" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
         {% for ex in exercicios %}
-            <option value="{{ ex.ano }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>
-                {{ ex.ano }}{% if ex.situacao == 'encerrado' %} (encerrado){% endif %}
+            <option value="{{ ex.ano|unlocalize }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>
+                {{ ex.ano|unlocalize }}{% if ex.situacao == 'encerrado' %} (encerrado){% endif %}
             </option>
         {% endfor %}
     </select>
