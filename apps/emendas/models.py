@@ -64,7 +64,9 @@ class Emenda(models.Model):
 
     # --- Gabinete / bancada (mérito) ---
     funcao_governo = models.ForeignKey(
-        FuncaoGoverno, verbose_name="Função de Governo", on_delete=models.PROTECT, related_name="emendas"
+        FuncaoGoverno, verbose_name="Função de Governo", on_delete=models.PROTECT,
+        related_name="emendas", null=True, blank=True,
+        help_text="Calculada automaticamente pelo setor técnico a partir da Vinculação Orçamentária.",
     )
     unidade_gestora = models.ForeignKey(
         UnidadeGestora, verbose_name="Unidade Gestora Vinculada", on_delete=models.PROTECT, related_name="emendas"
@@ -78,10 +80,21 @@ class Emenda(models.Model):
         related_name="emendas", null=True, blank=True,
     )
     acao_orcamentaria = models.TextField(
-        "Descrição da Emenda Impositiva Proposta",
-        help_text="Texto que aparece na caixa de descrição do formulário e na coluna 'Ação Orçamentária'.",
+        "Ação Orçamentária",
+        help_text=(
+            "O que será feito com o valor da emenda, em termos orçamentários — a atividade "
+            "ou o programa que será custeado. Ex.: 'Apoio a atividades desenvolvidas pela "
+            "Seaspac'. Este texto alimenta a coluna 'Ação Orçamentária' da tabela pública."
+        ),
     )
-    objeto_despesa = models.TextField("Objeto da Despesa")
+    objeto_despesa = models.TextField(
+        "Objeto da Despesa",
+        help_text=(
+            "O que exatamente será adquirido, contratado ou executado com o valor da "
+            "emenda — de forma específica. Ex.: 'Apoio a atividades desenvolvidas pela "
+            "Seaspac na assistência a famílias em situação de vulnerabilidade social'."
+        ),
+    )
     categoria_economica = models.CharField(
         "Categoria Econômica", max_length=20, choices=CategoriaEconomica.choices
     )

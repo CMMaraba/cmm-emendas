@@ -269,3 +269,26 @@ class ProgramaPPA(models.Model):
 
     def __str__(self):
         return f"{self.codigo} — {self.nome}"
+
+
+def resolver_classificacao_funcional(vinculacao_orcamentaria):
+    """Localiza a Função e a Subfunção de Governo a partir da Classificação Funcional
+    Programática (rubrica) digitada pelo setor técnico — ex.: "13 01. 08 244 5003 8.500".
+
+    O 3º grupo de números é o código da função (2 dígitos) e o 4º o da subfunção
+    (3 dígitos), conforme a Portaria MOG nº 42/1999 — a mesma tabela nacional usada por
+    União, Estados, DF e Municípios, por isso os códigos não mudam de um exercício para
+    outro nem precisam ser cadastrados manualmente a cada emenda.
+
+    Retorna (FuncaoGoverno, SubfuncaoGoverno) ou (None, None) se não for possível
+    reconhecer os códigos.
+    """
+    tokens = [t.strip(".") for t in (vinculacao_orcamentaria or "").split() if t.strip(".")]
+    if len(tokens) < 4:
+        return None, None
+    codigo_funcao, codigo_subfuncao = tokens[2], tokens[3]
+    funcao = FuncaoGoverno.objects.filter(codigo=codigo_funcao).first()
+    if funcao is None:
+        return None, None
+    subfuncao = SubfuncaoGoverno.objects.filter(funcao=funcao, codigo=codigo_subfuncao).first()
+    return funcao, subfuncao

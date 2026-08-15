@@ -31,15 +31,11 @@
         </div>
         {% endif %}
         <div class="col-md-6">
-            <label class="form-label">{{ form.funcao_governo.label }}</label>
-            {{ form.funcao_governo }}
-            <div class="text-danger small">{{ form.funcao_governo.errors }}</div>
-        </div>
-        <div class="col-md-6">
             <label class="form-label">{{ form.unidade_gestora.label }}</label>
             {{ form.unidade_gestora }}
             <div class="text-danger small">{{ form.unidade_gestora.errors }}</div>
         </div>
+        <div class="col-md-6"></div>
         <div class="col-md-6">
             <label class="form-label">{{ form.orgao_executor.label }}</label>
             {{ form.orgao_executor }}
@@ -47,20 +43,21 @@
             <div class="text-danger small">{{ form.orgao_executor.errors }}</div>
         </div>
         <div class="col-md-6">
-            <label class="form-label">{{ form.entidade.label }}</label>
-            {{ form.entidade }}
-            <div class="form-text">Preencha quando o destino for uma entidade privada sem fins lucrativos (OSC).</div>
-            <div class="text-danger small">{{ form.entidade.errors }}</div>
+            <label class="form-label">{{ form.entidade_nome.label }}</label>
+            {{ form.entidade_nome }}
+            <div class="form-text">{{ form.entidade_nome.help_text }}</div>
+            <div class="text-danger small">{{ form.entidade_nome.errors }}</div>
         </div>
         <div class="col-12">
             <label class="form-label">{{ form.acao_orcamentaria.label }}</label>
             {{ form.acao_orcamentaria }}
-            <div class="form-text">Texto que aparece na caixa "Descrição Emenda Impositiva Proposta" do formulário oficial.</div>
+            <div class="form-text">{{ form.acao_orcamentaria.help_text }}</div>
             <div class="text-danger small">{{ form.acao_orcamentaria.errors }}</div>
         </div>
         <div class="col-12">
             <label class="form-label">{{ form.objeto_despesa.label }}</label>
             {{ form.objeto_despesa }}
+            <div class="form-text">{{ form.objeto_despesa.help_text }}</div>
             <div class="text-danger small">{{ form.objeto_despesa.errors }}</div>
         </div>
         <div class="col-md-4">

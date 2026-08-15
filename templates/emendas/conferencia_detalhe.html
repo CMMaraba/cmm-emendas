@@ -8,7 +8,6 @@
     <div class="card-header">Mérito enviado pelo gabinete/bancada</div>
     <div class="card-body">
         <dl class="row mb-0">
-            <dt class="col-sm-3">Função de Governo</dt><dd class="col-sm-9">{{ emenda.funcao_governo }}</dd>
             <dt class="col-sm-3">Unidade Gestora</dt><dd class="col-sm-9">{{ emenda.unidade_gestora }}</dd>
             <dt class="col-sm-3">Órgão Executor / OSC</dt><dd class="col-sm-9">{{ emenda.destino_nome }}</dd>
             <dt class="col-sm-3">Descrição da emenda</dt><dd class="col-sm-9">{{ emenda.acao_orcamentaria }}</dd>
@@ -46,7 +45,12 @@
                 <div class="col-md-6">
                     <label class="form-label">{{ form.vinculacao_orcamentaria.label }}</label>
                     {{ form.vinculacao_orcamentaria }}
-                    <div class="form-text">Classificação Funcional Programática. Ex.: 13 01. 08 244 5003 8.500</div>
+                    <div class="form-text">
+                        Classificação Funcional Programática. Ex.: 13 01. 08 244 5003 8.500 — o 3º
+                        grupo (08) é o código da Função e o 4º (244) o da Subfunção de Governo; o
+                        sistema identifica os dois automaticamente a partir daqui, conforme a
+                        Portaria MOG nº 42/1999 (não é preciso selecioná-los à mão).
+                    </div>
                     <div class="text-danger small">{{ form.vinculacao_orcamentaria.errors }}</div>
                 </div>
                 <div class="col-md-6">
@@ -55,14 +59,19 @@
                     <div class="text-danger small">{{ form.data_reserva.errors }}</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.subfuncao_governo.label }}</label>
-                    {{ form.subfuncao_governo }}
-                    <div class="text-danger small">{{ form.subfuncao_governo.errors }}</div>
-                </div>
-                <div class="col-md-6">
                     <label class="form-label">{{ form.programa_ppa.label }}</label>
                     {{ form.programa_ppa }}
                     <div class="text-danger small">{{ form.programa_ppa.errors }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Função / Subfunção calculadas</label>
+                    <div class="form-control-plaintext">
+                        {% if emenda.funcao_governo %}
+                            {{ emenda.funcao_governo }} / {{ emenda.subfuncao_governo }}
+                        {% else %}
+                            <span class="text-muted">Ainda não calculadas — informe a Vinculação Orçamentária e salve.</span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             <button type="submit" class="btn btn-marrom mt-3">Salvar e publicar</button>
