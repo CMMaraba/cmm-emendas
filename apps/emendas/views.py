@@ -13,6 +13,15 @@ from .models import Emenda
 from .permissions import perfil_obrigatorio, tecnico_obrigatorio
 
 
+def _exercicio_selecionado(request, exercicios):
+    ano = request.GET.get("ano")
+    if ano:
+        for ex in exercicios:
+            if str(ex.ano) == ano:
+                return ex
+    return exercicios[0] if exercicios else None
+
+
 def _autor_do_usuario(perfil, exercicio):
     if not exercicio:
         return None
@@ -35,14 +44,17 @@ def _faixas_do_usuario(perfil, exercicio):
 
 @perfil_obrigatorio
 def painel_home(request):
-    exercicio = Exercicio.atual()
+    exercicios = list(Exercicio.objects.order_by("-ano"))
+    exercicio = _exercicio_selecionado(request, exercicios)
     cards = []
     emendas = Emenda.objects.none()
 
     if request.user.is_superuser and not hasattr(request.user, "perfil"):
         if exercicio:
             emendas = Emenda.objects.filter(exercicio=exercicio)
-        return render(request, "emendas/painel_home.html", {"exercicio": exercicio, "cards": cards, "emendas": emendas})
+        return render(request, "emendas/painel_home.html", {
+            "exercicio": exercicio, "exercicios": exercicios, "cards": cards, "emendas": emendas,
+        })
 
     perfil = request.user.perfil
     autor = _autor_do_usuario(perfil, exercicio)
@@ -60,6 +72,7 @@ def painel_home(request):
 
     context = {
         "exercicio": exercicio,
+        "exercicios": exercicios,
         "cards": cards,
         "emendas": emendas.select_related("faixa").order_by("-atualizado_em"),
         "perfil": perfil,
@@ -70,11 +83,6 @@ def painel_home(request):
 
 @perfil_obrigatorio
 def emenda_form(request, pk=None, faixa_id=None):
-    exercicio = Exercicio.atual()
-    if not exercicio:
-        messages.error(request, "Não há exercício orçamentário aberto no momento.")
-        return redirect("emendas:painel_home")
-
     perfil = getattr(request.user, "perfil", None)
     if perfil is None and not request.user.is_superuser:
         raise PermissionDenied
@@ -89,7 +97,11 @@ def emenda_form(request, pk=None, faixa_id=None):
             messages.warning(request, "Esta emenda não pode mais ser editada no estado atual.")
             return redirect("emendas:painel_home")
     else:
-        faixa = get_object_or_404(Faixa, pk=faixa_id, exercicio=exercicio, ativa=True)
+        faixa = get_object_or_404(Faixa, pk=faixa_id, ativa=True)
+        exercicio = faixa.exercicio
+        if exercicio.situacao != Exercicio.Situacao.ABERTO:
+            messages.error(request, f"O exercício {exercicio.ano} está encerrado — não é possível cadastrar novas emendas.")
+            return redirect("emendas:painel_home")
         autor = _autor_do_usuario(perfil, exercicio) if perfil else None
         modalidade_ok = (perfil.is_gabinete and faixa.modalidade == Faixa.Modalidade.INDIVIDUAL) or (
             perfil.is_bancada and faixa.modalidade == Faixa.Modalidade.COLETIVA

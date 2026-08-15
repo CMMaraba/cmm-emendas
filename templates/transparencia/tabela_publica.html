@@ -3,7 +3,17 @@
 {% block container_class %}container-fluid{% endblock %}
 {% block content %}
 <h1 class="h3 mb-1">Emendas Impositivas Municipais</h1>
-{% if exercicio %}<p class="text-muted">Exercício {{ exercicio.ano }}</p>{% endif %}
+
+{% if exercicios %}
+<form method="get" class="d-flex align-items-center gap-2 mb-3">
+    <label for="ano" class="form-label mb-0 small text-muted">Exercício</label>
+    <select name="ano" id="ano" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+        {% for ex in exercicios %}
+            <option value="{{ ex.ano }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>{{ ex.ano }}</option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
 
 {% if not abas %}
     <div class="alert alert-info">Nenhuma emenda publicada até o momento.</div>

@@ -1,7 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Meu painel{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Minhas emendas {% if exercicio %}— Exercício {{ exercicio.ano }}{% endif %}</h1>
+<h1 class="h3 mb-1">Minhas emendas</h1>
+
+{% if exercicios %}
+<form method="get" class="d-flex align-items-center gap-2 mb-4">
+    <label for="ano" class="form-label mb-0 small text-muted">Exercício</label>
+    <select name="ano" id="ano" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+        {% for ex in exercicios %}
+            <option value="{{ ex.ano }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>
+                {{ ex.ano }}{% if ex.situacao == 'encerrado' %} (encerrado){% endif %}
+            </option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
 
 {% if not exercicio %}
     <div class="alert alert-warning">Não há exercício orçamentário aberto no momento. Fale com o setor técnico.</div>
@@ -32,9 +45,11 @@
             {% else %}
                 <div class="saldo-valor positivo">Saldo restante: R$ {{ card.saldo|floatformat:2 }}</div>
             {% endif %}
+            {% if exercicio.situacao == 'aberto' %}
             <a class="btn btn-sm btn-marrom mt-2" href="{% url 'emendas:emenda_nova' card.faixa.id %}">
                 <i class="fa-solid fa-plus"></i> Nova emenda nesta faixa
             </a>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

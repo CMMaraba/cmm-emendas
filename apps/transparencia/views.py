@@ -20,6 +20,15 @@ COLUNAS = [
 ]
 
 
+def _exercicio_selecionado(request, exercicios):
+    ano = request.GET.get("ano")
+    if ano:
+        for ex in exercicios:
+            if str(ex.ano) == ano:
+                return ex
+    return exercicios[0] if exercicios else None
+
+
 def _publicadas(faixa=None, exercicio=None):
     qs = Emenda.objects.filter(situacao=Emenda.Situacao.PUBLICADA).select_related(
         "faixa", "autor_vereador", "autor_bancada", "autor_bancada__partido", "partido",
@@ -62,7 +71,8 @@ def _linha(emenda, request):
 
 
 def tabela_publica(request):
-    exercicio = Exercicio.atual()
+    exercicios = list(Exercicio.objects.order_by("-ano"))
+    exercicio = _exercicio_selecionado(request, exercicios)
     abas = []
     if exercicio:
         for faixa in exercicio.faixas.filter(ativa=True):
@@ -83,7 +93,9 @@ def tabela_publica(request):
             total = qs.aggregate(total=Sum("valor_previsto"))["total"] or 0
             abas.append({"faixa": faixa, "pagina": pagina, "termo": termo, "total": total, "quantidade": qs.count()})
 
-    return render(request, "transparencia/tabela_publica.html", {"exercicio": exercicio, "abas": abas, "colunas": COLUNAS})
+    return render(request, "transparencia/tabela_publica.html", {
+        "exercicio": exercicio, "exercicios": exercicios, "abas": abas, "colunas": COLUNAS,
+    })
 
 
 def exportar(request, formato, faixa_id):
@@ -160,7 +172,8 @@ def _exportar_pdf_tabela(faixa, emendas, nome_base):
 
 
 def api_emendas(request):
-    exercicio = Exercicio.atual()
+    exercicios = list(Exercicio.objects.order_by("-ano"))
+    exercicio = _exercicio_selecionado(request, exercicios)
     faixa_sigla = request.GET.get("faixa")
     qs = _publicadas(exercicio=exercicio)
     if faixa_sigla:
