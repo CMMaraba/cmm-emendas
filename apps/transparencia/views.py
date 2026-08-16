@@ -1,6 +1,7 @@
 import csv
 import json
 
+from django.conf import settings
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.http import Http404, HttpResponse, JsonResponse
@@ -40,10 +41,13 @@ def _formatar_numero_csv(valor):
     return valor
 
 
-def _linha(emenda, request):
+def _linha(emenda):
     # Toda emenda publicada tem o formulário oficial disponível (gerado na publicação,
     # com ata/documentação da entidade mesclada quando houver) — não só quando há anexo.
-    doc_url = request.build_absolute_uri(reverse("transparencia:emenda_pdf", args=[emenda.pk]))
+    # URL sempre com o domínio público final (settings.PUBLIC_BASE_URL), não o host que
+    # de fato serviu a requisição — assim as exportações já saem certas mesmo geradas
+    # durante a homologação em 10.3.150.7.
+    doc_url = settings.PUBLIC_BASE_URL + reverse("transparencia:emenda_pdf", args=[emenda.pk])
     return [
         emenda.numero,
         emenda.codigo,
@@ -112,7 +116,7 @@ def tabela_publica(request):
 def exportar(request, formato, faixa_id):
     faixa = get_object_or_404(Faixa, pk=faixa_id)
     emendas = list(_publicadas(faixa=faixa, exercicio=faixa.exercicio))
-    linhas = [_linha(e, request) for e in emendas]
+    linhas = [_linha(e) for e in emendas]
     nome_base = f"emendas_{faixa.sigla_codigo}_{faixa.exercicio.ano}"
 
     if formato == "csv":
@@ -306,7 +310,7 @@ def api_emendas(request):
 
     paginator = Paginator(qs.order_by("faixa", "numero"), 50)
     pagina = paginator.get_page(request.GET.get("page"))
-    resultados = [dict(zip(COLUNAS, _linha(e, request))) for e in pagina.object_list]
+    resultados = [dict(zip(COLUNAS, _linha(e))) for e in pagina.object_list]
 
     return JsonResponse({
         "count": paginator.count,

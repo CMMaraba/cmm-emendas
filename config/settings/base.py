@@ -3,6 +3,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# Domínio público final da aplicação (maraba.pa.leg.br, após o cutover) — usado para
+# montar URLs absolutas nas exportações (CSV/JSON/XLSX/PDF), independente do host que
+# realmente serviu a requisição (ex.: 10.3.150.7 em homologação). Ajustável via env var
+# se o domínio mudar, sem precisar alterar código.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://maraba.pa.leg.br").rstrip("/")
+
 INSTALLED_APPS = [
     "apps.parlamento",
     "apps.orcamento",
