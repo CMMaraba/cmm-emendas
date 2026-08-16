@@ -84,6 +84,18 @@ def tabela_publica(request):
             total = qs.aggregate(total=Sum("valor_previsto"))["total"] or 0
             abas.append({"faixa": faixa, "pagina": pagina, "termo": termo, "total": total, "quantidade": qs.count()})
 
+    # Qual aba deve estar ativa ao carregar a página: a marcada em "_aba" (mandada pelos
+    # links de paginação e pelo formulário de busca de cada faixa), com fallback pra
+    # primeira — sem isso, qualquer clique em "página 2" ou "Filtrar" de uma aba que não
+    # seja a primeira reabria a página sempre na primeira aba.
+    aba_ativa_pk = request.GET.get("_aba")
+    aba_ativa_pk = int(aba_ativa_pk) if aba_ativa_pk and aba_ativa_pk.isdigit() else None
+    pks_disponiveis = [aba["faixa"].pk for aba in abas]
+    if aba_ativa_pk not in pks_disponiveis:
+        aba_ativa_pk = pks_disponiveis[0] if pks_disponiveis else None
+    for aba in abas:
+        aba["ativa"] = aba["faixa"].pk == aba_ativa_pk
+
     return render(request, "transparencia/tabela_publica.html", {
         "exercicio": exercicio, "exercicios": exercicios, "abas": abas, "colunas": COLUNAS,
     })
