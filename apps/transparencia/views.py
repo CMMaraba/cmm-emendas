@@ -160,13 +160,14 @@ _PDF_LIMITE_TEXTO_LONGO = 280
 _PDF_INDICE_PROGRAMA_PPA = 12
 _PDF_LIMITE_PROGRAMA_PPA = 90
 
-# Largura relativa de cada coluna no PDF (mesma ordem de COLUNAS) — colunas de texto
-# livre (Ação Orçamentária, Objetivos do PPA etc.) recebem mais espaço; código/ano/
-# categoria recebem menos. A soma não precisa fechar em nada redondo: é normalizada pela
-# largura real disponível na página no momento de montar a tabela.
-_PDF_PESOS_COLUNAS = [
-    0.4, 1.8, 0.8, 1.1, 1.4, 0.9, 1.1, 1.4, 1.4, 1.2,
-    1.1, 1.35, 1.3, 1.6, 1.5, 1.5, 0.9, 1.2, 1.15, 1.15, 1.2,
+# Largura de cada coluna no PDF, em pontos (mesma ordem de COLUNAS) — valores absolutos,
+# não proporcionais: a página do PDF é dimensionada a partir da SOMA dessas larguras (ver
+# _exportar_pdf_tabela), então aumentar uma coluna aqui alarga a página, não espreme as
+# outras. "Objetivos do Programa do PPA" (índice 13) recebe 3x o espaço das demais
+# colunas de texto livre, a pedido explícito — é sempre o campo mais longo.
+_PDF_LARGURAS_COLUNAS = [
+    12, 56, 25, 34, 43, 28, 34, 43, 43, 37,
+    34, 42, 40, 148, 46, 46, 28, 37, 35, 35, 37,
 ]
 
 
@@ -186,14 +187,22 @@ def _exportar_pdf_tabela(faixa, linhas, nome_base):
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{nome_base}.pdf"'
 
+    # A página não é mais presa a A4: a largura vem da soma das colunas (ver
+    # _PDF_LARGURAS_COLUNAS) + margens — se uma coluna crescer, a página alarga, em vez
+    # de espremer as outras. A altura continua a de uma A4 paisagem.
+    margem = 1 * cm
+    largura_colunas = sum(_PDF_LARGURAS_COLUNAS)
+    largura_pagina = largura_colunas + 2 * margem
+    altura_pagina = landscape(A4)[1]
+
     doc = SimpleDocTemplate(
-        response, pagesize=landscape(A4),
-        topMargin=1 * cm, bottomMargin=1 * cm, leftMargin=1 * cm, rightMargin=1 * cm,
+        response, pagesize=(largura_pagina, altura_pagina),
+        topMargin=margem, bottomMargin=margem, leftMargin=margem, rightMargin=margem,
     )
     estilos = getSampleStyleSheet()
     marrom = colors.HexColor("#512f0d")
 
-    estilo_titulo = ParagraphStyle("TituloExportacao", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=14, textColor=marrom, leading=17)
+    estilo_titulo = ParagraphStyle("TituloExportacao", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=12, textColor=marrom, leading=15)
     estilo_subtitulo = ParagraphStyle("SubtituloExportacao", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=10, textColor=marrom, leading=13)
     estilo_meta = ParagraphStyle("MetaExportacao", parent=estilos["Normal"], fontName="Helvetica", fontSize=8, textColor=colors.grey, leading=10)
     estilo_cabecalho_col = ParagraphStyle("CabecalhoColuna", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=6.5, textColor=colors.white, alignment=TA_CENTER, leading=8)
@@ -202,21 +211,23 @@ def _exportar_pdf_tabela(faixa, linhas, nome_base):
     estilo_celula_valor = ParagraphStyle("CelulaValor", parent=estilo_celula, alignment=TA_RIGHT)
 
     # --- Cabeçalho: logo + nome do órgão + o que foi exportado ---
+    agora_local = timezone.localtime(timezone.now())
     textos_cabecalho = [
         Paragraph("CÂMARA MUNICIPAL DE MARABÁ", estilo_titulo),
         Paragraph(f"Emendas Impositivas — {escape(faixa.nome)}", estilo_subtitulo),
         Paragraph(
             f"Exercício {faixa.exercicio.ano} &middot; {len(linhas)} emenda(s) publicada(s) "
-            f"&middot; Exportado em {timezone.now():%d/%m/%Y %H:%M}",
+            f"&middot; Exportado em {agora_local:%d/%m/%Y %H:%M}",
             estilo_meta,
         ),
     ]
     elementos = []
     logo_path = os.path.join(settings.BASE_DIR, "static", "images", "logo.png")
     if os.path.exists(logo_path):
+        largura_logo, altura_logo = 130, 61
         cabecalho_tbl = Table(
-            [[Image(logo_path, width=70, height=33, kind="proportional"), textos_cabecalho]],
-            colWidths=[80, doc.width - 80],
+            [[Image(logo_path, width=largura_logo, height=altura_logo, kind="proportional"), textos_cabecalho]],
+            colWidths=[largura_logo + 10, doc.width - largura_logo - 10],
         )
         cabecalho_tbl.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -255,10 +266,7 @@ def _exportar_pdf_tabela(faixa, linhas, nome_base):
                 celulas.append(Paragraph(escape(texto), estilo_celula))
         dados.append(celulas)
 
-    total_pesos = sum(_PDF_PESOS_COLUNAS)
-    col_widths = [doc.width * peso / total_pesos for peso in _PDF_PESOS_COLUNAS]
-
-    tabela = Table(dados, colWidths=col_widths, repeatRows=1)
+    tabela = Table(dados, colWidths=_PDF_LARGURAS_COLUNAS, repeatRows=1)
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), marrom),
         ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
