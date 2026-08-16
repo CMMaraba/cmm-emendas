@@ -1,7 +1,21 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block title %}Fila de conferência{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Fila de conferência do setor técnico</h1>
+<h1 class="h3 mb-1">Fila de conferência do setor técnico</h1>
+
+{% if exercicios %}
+<form method="get" class="d-flex align-items-center gap-2 mb-4">
+    <label for="ano" class="form-label mb-0 small text-muted">Exercício</label>
+    <select name="ano" id="ano" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+        {% for ex in exercicios %}
+            <option value="{{ ex.ano|unlocalize }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>
+                {{ ex.ano|unlocalize }}{% if ex.situacao == 'encerrado' %} (encerrado){% endif %}
+            </option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
 <div class="table-responsive">
 <table class="table table-striped align-middle">
     <thead>

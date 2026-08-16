@@ -189,7 +189,11 @@ def emenda_excluir(request, pk):
 
 @tecnico_obrigatorio
 def conferencia_lista(request):
+    exercicios = list(Exercicio.objects.order_by("-ano"))
+    exercicio = _exercicio_selecionado(request, exercicios)
     base = Emenda.objects.select_related("faixa", "autor_vereador", "autor_bancada", "autor_bancada__partido")
+    if exercicio:
+        base = base.filter(exercicio=exercicio)
     emendas = base.filter(
         situacao__in=[Emenda.Situacao.ENVIADA, Emenda.Situacao.EM_CONFERENCIA]
     ).order_by("enviada_em")
@@ -197,7 +201,10 @@ def conferencia_lista(request):
     return render(
         request,
         "emendas/conferencia_lista.html",
-        {"emendas": emendas, "emendas_publicadas": emendas_publicadas},
+        {
+            "emendas": emendas, "emendas_publicadas": emendas_publicadas,
+            "exercicio": exercicio, "exercicios": exercicios,
+        },
     )
 
 
