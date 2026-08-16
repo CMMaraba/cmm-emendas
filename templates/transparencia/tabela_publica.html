@@ -77,7 +77,7 @@
                     <td>{{ emenda.funcao_governo.nome }}</td>
                     <td>{{ emenda.subfuncao_governo.nome }}</td>
                     <td>{{ emenda.programa_ppa.nome }}</td>
-                    <td><span class="d-inline-block text-truncate" style="max-width: 250px; cursor: help;" title="{{ emenda.programa_ppa.objetivos }}">{{ emenda.programa_ppa.objetivos }}</span></td>
+                    <td><span class="d-inline-block text-truncate" style="max-width: 250px;">{{ emenda.programa_ppa.objetivos }}</span></td>
                     <td>{{ emenda.acao_orcamentaria }}</td>
                     <td>{{ emenda.objeto_despesa }}</td>
                     <td>{{ emenda.destino_nome }}</td>
@@ -110,4 +110,34 @@
 {% endif %}
 
 <p class="mt-4"><a href="{% url 'transparencia:api_emendas' %}">API JSON (dados abertos)</a></p>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    // Só mostra tooltip em ".text-truncate" quando o texto realmente foi cortado pela
+    // largura da coluna (scrollWidth > clientWidth) — colunas sem essa classe continuam
+    // quebrando linha normalmente, sem tooltip nenhum. Reusa em qualquer coluna que
+    // ganhe "text-truncate" no futuro, sem precisar duplicar o texto num title fixo.
+    function marcarTruncados(escopo) {
+        (escopo || document).querySelectorAll('.text-truncate').forEach(function (el) {
+            if (el.scrollWidth > el.clientWidth) {
+                el.title = el.textContent.trim();
+                el.style.cursor = 'help';
+            }
+        });
+    }
+
+    marcarTruncados(document);
+
+    // As abas escondidas (Bootstrap tab-pane sem "show") ficam com display:none, então
+    // scrollWidth/clientWidth dão 0 até a aba ser exibida — reavalia ao trocar de aba.
+    document.querySelectorAll('#abasEmendas button[data-bs-toggle="tab"]').forEach(function (botao) {
+        botao.addEventListener('shown.bs.tab', function (evento) {
+            const alvo = document.querySelector(evento.target.dataset.bsTarget);
+            marcarTruncados(alvo);
+        });
+    });
+})();
+</script>
 {% endblock %}
