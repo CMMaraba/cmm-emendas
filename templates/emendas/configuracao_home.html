@@ -1,7 +1,21 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block title %}Configuração do exercício{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Configuração do exercício orçamentário</h1>
+<h1 class="h3 mb-1">Configuração do exercício orçamentário</h1>
+
+{% if exercicios %}
+<form method="get" class="d-flex align-items-center gap-2 mb-4">
+    <label for="ano" class="form-label mb-0 small text-muted">Exercício</label>
+    <select name="ano" id="ano" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+        {% for ex in exercicios %}
+            <option value="{{ ex.ano|unlocalize }}" {% if exercicio and ex.ano == exercicio.ano %}selected{% endif %}>
+                {{ ex.ano|unlocalize }}{% if ex.situacao == 'encerrado' %} (encerrado){% endif %}
+            </option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
 
 {% if not exercicio %}
     <div class="alert alert-warning">
@@ -10,7 +24,7 @@
     </div>
 {% else %}
     <div class="card mb-4">
-        <div class="card-header">Exercício {{ exercicio.ano }}</div>
+        <div class="card-header">Exercício {{ exercicio.ano|unlocalize }}</div>
         <div class="card-body">
             <dl class="row mb-0">
                 <dt class="col-sm-4">RCL do exercício anterior ({{ exercicio.ano_referencia_rcl }})</dt>

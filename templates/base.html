@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static l10n %}<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -103,7 +103,7 @@
 
 <footer>
     Câmara Municipal de Marabá — Sistema de Emendas Impositivas
-    {% if exercicio_atual %} · Exercício {{ exercicio_atual.ano }}{% endif %}
+    {% if exercicio_atual %} · Exercício {{ exercicio_atual.ano|unlocalize }}{% endif %}
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

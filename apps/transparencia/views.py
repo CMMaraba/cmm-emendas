@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from apps.emendas.models import Emenda
 from apps.emendas.pdf_generator import gerar_pdf_emenda
-from apps.orcamento.models import Exercicio, Faixa
+from apps.orcamento.models import Exercicio, Faixa, resolver_exercicio_selecionado
 
 COLUNAS = [
     "Nº", "Código", "Ano", "Município", "Vereador", "Partido Político",
@@ -18,15 +18,6 @@ COLUNAS = [
     "Ação Orçamentária", "Objeto da Despesa", "Órgão Executor / OSC", "Categoria Econômica",
     "Valor Previsto (R$)", "Valor de Custeio (R$)", "Valor de Investimento (R$)",
 ]
-
-
-def _exercicio_selecionado(request, exercicios):
-    ano = request.GET.get("ano")
-    if ano:
-        for ex in exercicios:
-            if str(ex.ano) == ano:
-                return ex
-    return exercicios[0] if exercicios else None
 
 
 def _publicadas(faixa=None, exercicio=None):
@@ -72,7 +63,7 @@ def _linha(emenda, request):
 
 def tabela_publica(request):
     exercicios = list(Exercicio.objects.order_by("-ano"))
-    exercicio = _exercicio_selecionado(request, exercicios)
+    exercicio = resolver_exercicio_selecionado(request, exercicios)
     abas = []
     if exercicio:
         for faixa in exercicio.faixas.filter(ativa=True):
@@ -173,7 +164,7 @@ def _exportar_pdf_tabela(faixa, emendas, nome_base):
 
 def api_emendas(request):
     exercicios = list(Exercicio.objects.order_by("-ano"))
-    exercicio = _exercicio_selecionado(request, exercicios)
+    exercicio = resolver_exercicio_selecionado(request, exercicios)
     faixa_sigla = request.GET.get("faixa")
     qs = _publicadas(exercicio=exercicio)
     if faixa_sigla:

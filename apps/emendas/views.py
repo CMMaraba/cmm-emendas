@@ -5,21 +5,12 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from apps.orcamento.models import Exercicio, Faixa, resolver_classificacao_funcional
+from apps.orcamento.models import Exercicio, Faixa, resolver_classificacao_funcional, resolver_exercicio_selecionado
 from apps.parlamento.models import Bancada, Perfil, Vereador
 
 from .forms import DevolucaoForm, EmendaConferenciaForm, EmendaForm
 from .models import Emenda
 from .permissions import perfil_obrigatorio, tecnico_obrigatorio
-
-
-def _exercicio_selecionado(request, exercicios):
-    ano = request.GET.get("ano")
-    if ano:
-        for ex in exercicios:
-            if str(ex.ano) == ano:
-                return ex
-    return exercicios[0] if exercicios else None
 
 
 def _autor_do_usuario(perfil, exercicio):
@@ -45,7 +36,7 @@ def _faixas_do_usuario(perfil, exercicio):
 @perfil_obrigatorio
 def painel_home(request):
     exercicios = list(Exercicio.objects.order_by("-ano"))
-    exercicio = _exercicio_selecionado(request, exercicios)
+    exercicio = resolver_exercicio_selecionado(request, exercicios)
     cards = []
     emendas = Emenda.objects.none()
 
@@ -190,7 +181,7 @@ def emenda_excluir(request, pk):
 @tecnico_obrigatorio
 def conferencia_lista(request):
     exercicios = list(Exercicio.objects.order_by("-ano"))
-    exercicio = _exercicio_selecionado(request, exercicios)
+    exercicio = resolver_exercicio_selecionado(request, exercicios)
     base = Emenda.objects.select_related("faixa", "autor_vereador", "autor_bancada", "autor_bancada__partido")
     if exercicio:
         base = base.filter(exercicio=exercicio)
@@ -279,9 +270,13 @@ def cadastros_home(request):
 def configuracao_home(request):
     if not (request.user.is_superuser or (hasattr(request.user, "perfil") and request.user.perfil.is_configurador)):
         raise PermissionDenied
-    exercicio = Exercicio.atual()
+    exercicios = list(Exercicio.objects.order_by("-ano"))
+    exercicio = resolver_exercicio_selecionado(request, exercicios)
     faixas = []
     if exercicio:
         for faixa in exercicio.faixas.all():
             faixas.append({"faixa": faixa, "teto_por_vereador": faixa.teto_por_vereador()})
-    return render(request, "emendas/configuracao_home.html", {"exercicio": exercicio, "faixas": faixas})
+    return render(
+        request, "emendas/configuracao_home.html",
+        {"exercicio": exercicio, "exercicios": exercicios, "faixas": faixas},
+    )

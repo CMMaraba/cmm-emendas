@@ -20,7 +20,7 @@
 {% if not exercicio %}
     <div class="alert alert-warning">Não há exercício orçamentário aberto no momento. Fale com o setor técnico.</div>
 {% elif sem_bancada_no_exercicio %}
-    <div class="alert alert-warning">Sua bancada ainda não foi cadastrada para o exercício {{ exercicio.ano }}.</div>
+    <div class="alert alert-warning">Sua bancada ainda não foi cadastrada para o exercício {{ exercicio.ano|unlocalize }}.</div>
 {% endif %}
 
 {% if cards %}

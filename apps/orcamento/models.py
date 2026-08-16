@@ -50,10 +50,6 @@ class Exercicio(models.Model):
     def __str__(self):
         return f"Exercício {self.ano}"
 
-    @classmethod
-    def atual(cls):
-        return cls.objects.filter(situacao=cls.Situacao.ABERTO).order_by("-ano").first()
-
     def clonar_para(self, novo_ano):
         """Abre um novo exercício copiando RCL, nº de vereadores e faixas do atual."""
         novo = Exercicio.objects.create(
@@ -78,6 +74,30 @@ class Exercicio(models.Model):
                 ativa=faixa.ativa,
             )
         return novo
+
+
+SESSAO_ANO_EXERCICIO = "exercicio_ano_selecionado"
+
+
+def resolver_exercicio_selecionado(request, exercicios=None):
+    """Resolve qual Exercicio vale para esta requisição, lembrando a escolha do dropdown
+    de ano entre páginas via sessão: se `?ano=` vier na URL, grava na sessão; senão, usa o
+    que já estiver salvo; sem nenhum dos dois, cai no mais recente. Usado por toda tela
+    com seletor de exercício (painel, conferência, tabela pública, configuração) e pelo
+    rodapé (apps.emendas.context_processors.exercicio_atual), para a escolha ficar
+    consistente em todo o site."""
+    if exercicios is None:
+        exercicios = list(Exercicio.objects.order_by("-ano"))
+    ano = request.GET.get("ano")
+    if ano:
+        request.session[SESSAO_ANO_EXERCICIO] = ano
+    else:
+        ano = request.session.get(SESSAO_ANO_EXERCICIO)
+    if ano:
+        for ex in exercicios:
+            if str(ex.ano) == str(ano):
+                return ex
+    return exercicios[0] if exercicios else None
 
 
 class Faixa(models.Model):
