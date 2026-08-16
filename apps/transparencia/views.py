@@ -136,41 +136,143 @@ def exportar(request, formato, faixa_id):
         return response
 
     if formato == "pdf":
-        return _exportar_pdf_tabela(faixa, emendas, nome_base)
+        return _exportar_pdf_tabela(faixa, linhas, nome_base)
 
     raise Http404("Formato de exportação inválido.")
 
 
-def _exportar_pdf_tabela(faixa, emendas, nome_base):
+# Índices (na mesma ordem de COLUNAS) que recebem tratamento especial no PDF de
+# exportação: centralizados, monetários (formatação BRL + alinhados à direita), e o link
+# clicável de "Documentos da Emenda" (que na exportação vira só "PDF", não a URL inteira).
+_PDF_INDICES_CENTRALIZADOS = {0, 2, 5, 6}
+_PDF_INDICES_MONETARIOS = {18, 19, 20}
+_PDF_INDICE_DOCUMENTO = 6
+
+# Ação Orçamentária, Objeto da Despesa e Objetivos do Programa do PPA podem ter parágrafos
+# inteiros (texto livre digitado pelo vereador/técnico) — numa coluna estreita isso gera
+# uma linha mais alta que a própria página e derruba a geração do PDF (LayoutError). CSV/
+# JSON/XLSX continuam com o texto completo; só o PDF trunca, como prévia. "Programa PPA"
+# devia ser só um nome curto, mas na prática vem com o mesmo texto longo — limite mais
+# apertado, já que essa coluna é estreita por natureza (o texto completo se repete em
+# "Objetivos do Programa do PPA", ao lado).
+_PDF_INDICES_TEXTO_LONGO = {13, 14, 15}
+_PDF_LIMITE_TEXTO_LONGO = 280
+_PDF_INDICE_PROGRAMA_PPA = 12
+_PDF_LIMITE_PROGRAMA_PPA = 90
+
+# Largura relativa de cada coluna no PDF (mesma ordem de COLUNAS) — colunas de texto
+# livre (Ação Orçamentária, Objetivos do PPA etc.) recebem mais espaço; código/ano/
+# categoria recebem menos. A soma não precisa fechar em nada redondo: é normalizada pela
+# largura real disponível na página no momento de montar a tabela.
+_PDF_PESOS_COLUNAS = [
+    0.4, 1.8, 0.8, 1.1, 1.4, 0.9, 1.1, 1.4, 1.4, 1.2,
+    1.1, 1.35, 1.3, 1.6, 1.5, 1.5, 0.9, 1.2, 1.15, 1.15, 1.2,
+]
+
+
+def _exportar_pdf_tabela(faixa, linhas, nome_base):
+    import os
+
+    from django.conf import settings
+    from django.utils import timezone
+    from django.utils.html import escape
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{nome_base}.pdf"'
 
-    doc = SimpleDocTemplate(response, pagesize=landscape(A4), topMargin=1 * cm, bottomMargin=1 * cm)
+    doc = SimpleDocTemplate(
+        response, pagesize=landscape(A4),
+        topMargin=1 * cm, bottomMargin=1 * cm, leftMargin=1 * cm, rightMargin=1 * cm,
+    )
     estilos = getSampleStyleSheet()
-    cabecalho = [Paragraph(f"<b>{c}</b>", estilos["Normal"]) for c in
-                 ["Nº", "Código", "Vereador", "Partido", "Órgão Executor / OSC", "Objeto da Despesa", "Valor Previsto (R$)"]]
+    marrom = colors.HexColor("#512f0d")
+
+    estilo_titulo = ParagraphStyle("TituloExportacao", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=14, textColor=marrom, leading=17)
+    estilo_subtitulo = ParagraphStyle("SubtituloExportacao", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=10, textColor=marrom, leading=13)
+    estilo_meta = ParagraphStyle("MetaExportacao", parent=estilos["Normal"], fontName="Helvetica", fontSize=8, textColor=colors.grey, leading=10)
+    estilo_cabecalho_col = ParagraphStyle("CabecalhoColuna", parent=estilos["Normal"], fontName="Helvetica-Bold", fontSize=6.5, textColor=colors.white, alignment=TA_CENTER, leading=8)
+    estilo_celula = ParagraphStyle("CelulaExportacao", parent=estilos["Normal"], fontName="Helvetica", fontSize=6, leading=7.5)
+    estilo_celula_centro = ParagraphStyle("CelulaCentro", parent=estilo_celula, alignment=TA_CENTER)
+    estilo_celula_valor = ParagraphStyle("CelulaValor", parent=estilo_celula, alignment=TA_RIGHT)
+
+    # --- Cabeçalho: logo + nome do órgão + o que foi exportado ---
+    textos_cabecalho = [
+        Paragraph("CÂMARA MUNICIPAL DE MARABÁ", estilo_titulo),
+        Paragraph(f"Emendas Impositivas — {escape(faixa.nome)}", estilo_subtitulo),
+        Paragraph(
+            f"Exercício {faixa.exercicio.ano} &middot; {len(linhas)} emenda(s) publicada(s) "
+            f"&middot; Exportado em {timezone.now():%d/%m/%Y %H:%M}",
+            estilo_meta,
+        ),
+    ]
+    elementos = []
+    logo_path = os.path.join(settings.BASE_DIR, "static", "images", "logo.png")
+    if os.path.exists(logo_path):
+        cabecalho_tbl = Table(
+            [[Image(logo_path, width=70, height=33, kind="proportional"), textos_cabecalho]],
+            colWidths=[80, doc.width - 80],
+        )
+        cabecalho_tbl.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (0, 0), "CENTER"),
+        ]))
+        elementos.append(cabecalho_tbl)
+    else:
+        elementos.extend(textos_cabecalho)
+    elementos.append(Spacer(1, 12))
+
+    # --- Tabela de dados: todas as colunas, mesma fonte em toda a tabela ---
+    def formatar_valor(valor):
+        return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    cabecalho = [Paragraph(coluna, estilo_cabecalho_col) for coluna in COLUNAS]
     dados = [cabecalho]
-    for e in emendas:
-        dados.append([
-            str(e.numero), e.codigo, e.autor_nome, e.partido.sigla, e.destino_nome,
-            Paragraph(e.objeto_despesa[:200], estilos["Normal"]),
-            f"{e.valor_previsto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        ])
-    tabela = Table(dados, repeatRows=1)
+    for linha in linhas:
+        celulas = []
+        for indice, valor in enumerate(linha):
+            if indice == _PDF_INDICE_DOCUMENTO:
+                texto = f'<link href="{valor}" color="#512f0d">PDF</link>' if valor else "—"
+                celulas.append(Paragraph(texto, estilo_celula_centro))
+            elif indice in _PDF_INDICES_MONETARIOS:
+                celulas.append(Paragraph(formatar_valor(valor), estilo_celula_valor))
+            elif indice in _PDF_INDICES_CENTRALIZADOS:
+                celulas.append(Paragraph(escape(str(valor)) if valor not in (None, "") else "—", estilo_celula_centro))
+            else:
+                texto = str(valor) if valor not in (None, "") else "—"
+                limite = (
+                    _PDF_LIMITE_PROGRAMA_PPA if indice == _PDF_INDICE_PROGRAMA_PPA
+                    else _PDF_LIMITE_TEXTO_LONGO if indice in _PDF_INDICES_TEXTO_LONGO
+                    else None
+                )
+                if limite and len(texto) > limite:
+                    texto = texto[:limite].rstrip() + "…"
+                celulas.append(Paragraph(escape(texto), estilo_celula))
+        dados.append(celulas)
+
+    total_pesos = sum(_PDF_PESOS_COLUNAS)
+    col_widths = [doc.width * peso / total_pesos for peso in _PDF_PESOS_COLUNAS]
+
+    tabela = Table(dados, colWidths=col_widths, repeatRows=1)
     tabela.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#512f0d")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("BACKGROUND", (0, 0), (-1, 0), marrom),
+        ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
+        ("VALIGN", (0, 1), (-1, -1), "TOP"),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f5f2")]),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
     ]))
-    doc.build([tabela])
+    elementos.append(tabela)
+
+    doc.build(elementos)
     return response
 
 
