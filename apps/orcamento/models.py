@@ -69,7 +69,6 @@ class Exercicio(models.Model):
                 percentual_rcl=faixa.percentual_rcl,
                 sigla_codigo=faixa.sigla_codigo,
                 tipo_transferencia=faixa.tipo_transferencia,
-                rotulo_transferencia=faixa.rotulo_transferencia,
                 ordem=faixa.ordem,
                 ativa=faixa.ativa,
             )
@@ -119,9 +118,6 @@ class Faixa(models.Model):
     )
     sigla_codigo = models.CharField("Sigla do código", max_length=10, help_text="Ex.: EPIMI, EPIMB")
     tipo_transferencia = models.CharField("Tipo de transferência", max_length=100, default="Finalidade Definida")
-    rotulo_transferencia = models.CharField(
-        "Rótulo do tipo de transferência", max_length=10, default="FD", help_text='Coluna "RP" do PDF.'
-    )
     percentual_minimo_outras_funcoes = models.DecimalField(
         "Percentual mínimo para outras funções",
         max_digits=5,

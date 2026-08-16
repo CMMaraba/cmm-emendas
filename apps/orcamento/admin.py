@@ -21,7 +21,6 @@ class FaixaInline(admin.TabularInline):
         "modalidade",
         "percentual_rcl",
         "sigla_codigo",
-        "rotulo_transferencia",
         "percentual_minimo_outras_funcoes",
         "ordem",
         "ativa",
