@@ -32,6 +32,14 @@ def _publicadas(faixa=None, exercicio=None):
     return qs.order_by("numero")
 
 
+def _formatar_numero_csv(valor):
+    # Só os três campos de valor (Previsto/Custeio/Investimento) chegam como float em
+    # _linha() — Nº e Ano são inteiros e não precisam de vírgula decimal.
+    if isinstance(valor, float):
+        return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return valor
+
+
 def _linha(emenda, request):
     # Toda emenda publicada tem o formulário oficial disponível (gerado na publicação,
     # com ata/documentação da entidade mesclada quando houver) — não só quando há anexo.
@@ -110,9 +118,13 @@ def exportar(request, formato, faixa_id):
     if formato == "csv":
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{nome_base}.csv"'
-        writer = csv.writer(response)
+        # Ponto e vírgula como separador de campo (o vírgula já é o separador decimal
+        # nos números abaixo, e é o padrão que o Excel em pt-BR espera para abrir o CSV
+        # com as colunas já separadas); QUOTE_ALL cerca todo campo com aspas.
+        writer = csv.writer(response, delimiter=";", quoting=csv.QUOTE_ALL)
         writer.writerow(COLUNAS)
-        writer.writerows(linhas)
+        for linha in linhas:
+            writer.writerow([_formatar_numero_csv(valor) for valor in linha])
         return response
 
     if formato == "json":
